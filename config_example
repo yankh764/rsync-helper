@@ -12,12 +12,11 @@
 # ers between the unit name and its configurations.            #
 # For example:                                                 #
 #                                                              #
-# UnitName = configurations;                                   #
+# UnitName = configurations                                    #
 #                                                              #
 # As you can see there are 3 characters between the unit name  #
-# and the configurations (2 spaces and an equal sign).         #
-# Also you must terminate each unit's configurations with a    #
-# semicolon (';').                                             #
+# and the configurations (2 spaces and an equal sign). Be awa- #
+# re that each new line terminates the unit's configurations.  #
 # If the unit's configurations are too long you can put it in- #
 # side a pair of braces and make it a list. For example:       #
 #                                                              #
@@ -26,7 +25,7 @@
 #    config_2                                                  #
 #    config_3                                                  #
 #    config_4                                                  #
-# }; <- Don't forget to terminate the list                     #
+# }  <- Don't forget to close the list                         #
 #                                                              #
 # If the list is group of commands you can add '&&' to the end #
 # of each line. If the command requires root privileges you    #
@@ -38,10 +37,10 @@
 #    command 3 &&                                              #
 #    sudo root_command 3 &&                                    #
 #    command 4                                                 #
-# };                                                           #
+# }                                                            #
 #                                                              #
 # Be aware that every new line in the list syntax is converted #
-# into a space.                                                #
+# into a space, and '}' terminates the list.                   #
 # Note: Please if you want to use indention for the list, only #
 # use tabs, becuase they are ignored while reading a list.     #
 # Lastly as you can see hashes ('#') are ignored.              #
@@ -58,10 +57,10 @@ DirsToClean = {
 	~/.local/share/Trash/files/*
 	~/.cache/torbrowser/download/*
 	~/.cache/yarn
-};
+}
 CleaningCommands = {
 	sudo pacman -Sc &&
 	sudo paccache -rk2 &&
 	sudo journalctl --vacuum-time=1weeks
-};
-DevicePath = /run/media/yan/HDD/;
+}
+DevicePath = /run/media/yan/HDD/
