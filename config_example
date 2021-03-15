@@ -58,9 +58,15 @@ DirsToClean = {
 	~/.cache/torbrowser/download/*
 	~/.cache/yarn
 }
+
 CleaningCommands = {
 	sudo pacman -Sc &&
 	sudo paccache -rk2 &&
 	sudo journalctl --vacuum-time=1weeks
 }
+
 DevicePath = /run/media/yan/HDD/
+
+#This is the default command which backups all the necessary directories.
+#You can of course change it to your needs.
+RsyncCommand = sudo rsync -aAXHv --exclude={"/dev/*","/proc/*","/sys/*","/tmp/*","/run/*","/mnt/*","/media/*","/lost+found"} / 

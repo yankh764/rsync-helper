@@ -26,7 +26,7 @@ int main() {
 	};
 	const char *units_list[] = {
 		"DirsToClean", "CleaningCommands", "DevicePath", 
-		"\0"
+		"RsyncCommand", "\0"
 	};
 	const char *units_desc[] = {
 		"Dirs path you regularly clean, like some cache dirs",
@@ -36,6 +36,8 @@ int main() {
 		"\tfrom the cache in arch based distros)\n"
 		"}", 
 		"Your storage device path hdd, usb or whatever you use",  
+		"sudo rsync -aAXHv --exclude={\"/dev/*\",\"/proc/*\",\"/sys/*\""
+		",\"/tmp/*\",\"/run/*\",\"/mnt/*\",\"/media/*\",\"/lost+found\"} / ", 
 		"\0"
 	};
 	char *config_path = "/.config/sys_backup";
@@ -53,11 +55,12 @@ int main() {
 	}
 	strcpy(config_full_path, home);
 	strcat(config_full_path, config_path);
+	
 	if(check_file_existence(config_full_path) == 0) { //Check if config file exists
 		create_config_file(config_full_path, config_desc);
-		for(i=0; i<3; i++)
+		for(i=0; *units_desc[i]!='\0'; i++)
 			write_config_unit(config_full_path, *(units_list+i), *(units_desc+i));
-		printf("Please configure the prorgram's config file in the following path: %s\n", config_full_path);
+		printf("Please configure the prorgram's config file in the following path: %s.\n", config_full_path);
 		return 0;
 	}
 	/*Read the configured units*/
@@ -79,7 +82,12 @@ int main() {
 	}
 	get_date(date); //Get the date of today and pass it to the date array
 	backup_path = make_backup_dir(configurations, date); //Create backup dir and get its path
-	backup_sys(backup_path); //Backup system in the created dir
+	
+	if((configurations=read_config_unit(config_full_path, units_list[3])) == NULL) { //Unit wasnt found
+		handle_strstr_error(units_list[3]);
+		exit(EXIT_FAILURE);
+	}
+	backup_sys(configurations, backup_path); //Backup system in the created dir
 	return 0;
 }
 
@@ -89,7 +97,19 @@ int main() {
 void delete_dirs(char *dirs_path) {
 	char full_command[700];
 	const char *command = "rm -rf ";
+	const char *danger_message = {
+		"Nice try, but we wont let you destroy your system ;)\n"
+		"Please make sure that DirsToClean unit is configured properly "
+		"and there is no sign of standalone root tree (\"/\")."
+	};
+	unsigned int i;
 
+	//Loop in dirs_path yo make sure no one removing the root tree by mistake
+	for(i=0; i<strlen(dirs_path); i++)
+		if(dirs_path[i]==' ' && dirs_path[i+1]=='/' && dirs_path[i+2]==' ') {
+			fprintf(stderr, "%s\n", danger_message);
+			exit(EXIT_FAILURE);
+		}
 	//Check for overflow
 	if(check_input_size(sizeof(full_command), strlen(dirs_path)+strlen(command))) {
 		fprintf(stderr, "The size of the inserted string in sys_backup.c -> delete_dirs is invalid.\n");
@@ -155,21 +175,20 @@ char *make_backup_dir(char *device_path, int *date_array) {
 }
 
 /*
-*This function will make the full system backup using rsync to the passed passed.
+*This function will make the full system backup using rsync to the passed dir path.
 */
-void backup_sys(char *backup_path) {
-	const char *backup_command = "sudo rsync -aAXHv --exclude={\"/dev/*\",\"/proc/*\",\"/sys/*\",\"/tmp/*\",\"/run/*\",\"/mnt/*\",\"/media/*\",\"/lost+found\"} / ";
-	char command_buffer[500];
+void backup_sys(const char *command, char *backup_path) {
+	char full_command[500];
 
 	/*Prepare command*/
 	//Check for overflow
-	if(check_input_size(sizeof(command_buffer), strlen(backup_command)+strlen(backup_path)+sizeof("/"))) {
+	if(check_input_size(sizeof(full_command), strlen(command)+strlen(backup_path)+sizeof("/"))) {
 		fprintf(stderr, "The size of the inserted string in sys_backup.c -> backup_sys is invalid.\n");
 		exit(EXIT_FAILURE);
 	}
-	strcpy(command_buffer, backup_command);
-	strcat(command_buffer, backup_path);
-	strcat(command_buffer, "/");
+	strcpy(full_command, command);
+	strcat(full_command, backup_path);
+	strcat(full_command, "/");
 	
-	system(command_buffer); //Execute the command 
+	system(full_command); //Execute the command 
 }

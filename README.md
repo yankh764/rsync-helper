@@ -31,4 +31,11 @@ It'll create a configuration file in the ~/.config with the name sys_backup.
 Configure it to your needs and prefrences -all instructions are written there-.  
 Then make sure that the storage device is mounted, run the program one more time,  
 it should execute and do all the cleaning process, create a backup directory  
-in storage device then it'll backup all your system there. 
+in storage device then it'll backup all your system there.  
+
+## Latest Updates
+1. Simplified the syntax of the configuration file a little bit.
+2. Added a make file to simplify the compilation process.
+3. Added header guards.
+4. Added the option to configure rsync command so you can execlude whatever you want.
+5. Edited the config_example so it will be up to date and relevant.

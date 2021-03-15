@@ -94,7 +94,7 @@ void write_config_unit(char *file_path, const char *unit_name, const char *unit_
 		handle_files_error("An error occurred in write_config_unit() while opening ", file_path);
 	fprintf(fp, "%s", unit_name);
 	fprintf(fp, "%s", " = ");
-	fprintf(fp, "%s;\n", unit_desc);
+	fprintf(fp, "%s\n", unit_desc);
 	fclose(fp);	
 }
 
@@ -156,9 +156,11 @@ void read_reg_syntax(char *config_beginning, char *configs_buffer, int buffer_si
 	int i = 0;
 
 	while(1) 
-		switch(*(config_beginning+i)) {
-			case '\n': //If line is terminated
-				*(configs_buffer+i) = '\0';
+		switch(config_beginning[i]) {
+			case '\n':
+				configs_buffer[i] = '\0'; //teminate line
+				return; //exit
+			case '\0': //Line is terminated
 				return; //exit
 			default:
 				//Check for overflow
@@ -167,7 +169,7 @@ void read_reg_syntax(char *config_beginning, char *configs_buffer, int buffer_si
 					exit(EXIT_FAILURE);
 				}
 				//insert char into the configs_buffer
-				*(configs_buffer+i) = *(config_beginning+i);
+				configs_buffer[i] = config_beginning[i];
 				i++;
 				break;
 			}
@@ -183,9 +185,9 @@ int read_list_syntax(char *line_beginning, char *configs_buffer, int buffer_size
 	char_cnt = strlen(configs_buffer); //number of characters in configs_buffer
 	i = 0;  
 	while(1) { //Loop and read line until reaching '\n' or ';'
-		switch(*(line_beginning+i)) {
-			case '}': //If line is terminated
-				*(configs_buffer+char_cnt) = '\0';
+		switch(line_beginning[i]) {
+			case '}': //If end of list
+				configs_buffer[char_cnt] = '\0'; //terminate line
 				return 0; //Finished reading list
 			case '\t': //Ignore indention 
 				break;
@@ -195,7 +197,7 @@ int read_list_syntax(char *line_beginning, char *configs_buffer, int buffer_size
 					fprintf(stderr, "The size of the inserted string in config_man.c -> read_list_syntax is invalid.\n");
 					exit(EXIT_FAILURE);
 				}
-				*(configs_buffer+char_cnt) = ' ';
+				configs_buffer[char_cnt] = ' ';
 				return 1; //Read next line
 			default:
 				//Make sure there is no overflow
@@ -203,7 +205,7 @@ int read_list_syntax(char *line_beginning, char *configs_buffer, int buffer_size
 					fprintf(stderr, "The size of the inserted string in config_man.c -> read_list_syntax is invalid.\n");
 					exit(EXIT_FAILURE);
 				}
-				*(configs_buffer+char_cnt) = *(line_beginning+i);
+				configs_buffer[char_cnt] = line_beginning[i];
 				char_cnt++;
 				break;
 		}
@@ -229,7 +231,7 @@ int check_unit_existence(const char *unit_name, char *line_begin) {
 					fprintf(stderr, "The size of the inserted string in config_man.c -> check_unit_existence is invalid.\n");
 					exit(EXIT_FAILURE);
 				} 
-		unit_to_check[i] = *(line_begin+i);
+		unit_to_check[i] = line_begin[i];
 	}
 	if(strcmp(unit_name, unit_to_check) == 0) //If equal 
 		return 0;
