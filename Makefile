@@ -1,6 +1,6 @@
 CC=gcc
 
-TARGET_EXEC ?= sys_backup
+TARGET_EXEC ?= backup
 
 IDIR ?= include/
 ODIR ?= ./build

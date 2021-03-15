@@ -9,9 +9,9 @@ This program will read configurations from ~/.config/sys_backup, so just make
 sure to configure the file correctly.
 
 ## Dependencies
-1. rsync, backup program.  
-2. gcc, C compiler.  
-3. git, to clone this repo.
+1. rsync (Backup program).  
+2. gcc (C compiler).   
+3. git (to clone this repo).
 You can install these packages using your distribution's package manager.  
 
 ## Usage
@@ -20,11 +20,13 @@ You can install these packages using your distribution's package manager.
 
 	```git clone https://github.com/yankh764/full-system-backup.git```
 
-3. Move to the cloned directory and compile this program using gcc. For example:
+3. Move to the cloned directory and type:
 
-	```sudo gcc -o /usr/local/bin/sys_backup sys_backup.c```
+	```make```   
+	```sudo make install```   
+	```make clean```
 
-4. Run the program from terminal -using the name you chose to compile it with-.  
+4. Run the program from terminal by typing backup.  
 It'll create a configuration file in the ~/.config with the name sys_backup.
 Configure it to your needs and prefrences -all instructions are written there-.  
 Then make sure that the storage device is mounted, run the program one more time,  
