@@ -1,0 +1,72 @@
+################################################################
+# This configuration file purposes are to provide to the       #
+# sys_backup.c program the right cleaning process and storage  #
+# device path, customized to your own needs and preferences.   #
+################################################################
+################################################################
+#--------------------------------------------------------------#
+#                        [Instructions]                        #
+#--------------------------------------------------------------#
+################################################################
+# Please it's very important to make sure there are 3 charact- #
+# ers between the unit name and its configurations.            #
+# For example:                                                 #
+#                                                              #
+# UnitName = configurations                                    #
+#                                                              #
+# As you can see there are 3 characters between the unit name  #
+# and the configurations (2 spaces and an equal sign). Be awa- #
+# re that each new line terminates the unit's configurations.  #
+# If the unit's configurations are too long you can put it in- #
+# side a pair of braces and make it a list. For example:       #
+#                                                              #
+# VeryLongUnit = {                                             #
+#    config_1                                                  #
+#    config_2                                                  #
+#    config_3                                                  #
+#    config_4                                                  #
+# }  <- Don't forget to close the list                         #
+#                                                              #
+# If the list is group of commands you can add '&&' to the end #
+# of each line. If the command requires root privileges you    #
+# can just add sudo to the command. For example:               #
+#                                                              #
+# CommandsUnit = {                                             #
+#    command 1 &&                                              #
+#    sudo root_command 2 &&                                    #
+#    command 3 &&                                              #
+#    sudo root_command 3 &&                                    #
+#    command 4                                                 #
+# }                                                            #
+#                                                              #
+# Be aware that every new line in the list syntax is converted #
+# into a space, and '}' terminates the list.                   #
+# Note: Please if you want to use indention for the list, only #
+# use tabs, becuase they are ignored while reading a list.     #
+# Lastly as you can see hashes ('#') are ignored.              #
+# By the way, sorry for the hard syntax I really tried to make #
+# as easy as I can and that's the result. I hope you like it :)#
+################################################################
+
+DirsToClean = {
+	~/.cache/spotify
+	~/.cache/mozilla/firefox/9jizeht4.default-release/thumbnails
+	~/.cache/tracker3
+	~/.cache/mozilla/firefox/9jizeht4.default-release/cache2
+	~/.cache/zoom
+	~/.local/share/Trash/files/*
+	~/.cache/torbrowser/download/*
+	~/.cache/yarn
+}
+
+CleaningCommands = {
+	sudo pacman -Sc &&
+	sudo paccache -rk2 &&
+	sudo journalctl --vacuum-time=1weeks
+}
+
+DevicePath = /run/media/yan/HDD/
+
+#This is the default command which backups all the necessary directories.
+#You can of course change it to your needs.
+RsyncCommand = sudo rsync -aAXHv --exclude={"/dev/*","/proc/*","/sys/*","/tmp/*","/run/*","/mnt/*","/media/*","/lost+found"} / 
