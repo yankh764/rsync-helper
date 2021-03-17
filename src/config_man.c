@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "errors.h" //Header for error handling
 #include "config_man.h"
 
 /*
@@ -76,7 +75,7 @@ void create_config_file(char *file_path, const char *description) {
 
 	fp = fopen(file_path, "w");
 	if(fp == NULL) //Check if error occurred
-		handle_files_error("An error occurred in create_config_file() while creating ", file_path);
+		fprintf(stderr, "An error occurred while creating: %s.\n", file_path);
 	fprintf(fp, "%s\n", description);
 	fprintf(fp, "%s\n", config_instruct);
 	fclose(fp);
@@ -91,10 +90,8 @@ void write_config_unit(char *file_path, const char *unit_name, const char *unit_
 
 	fp = fopen(file_path, "a");
 	if(fp == NULL) //Check if error occurred
-		handle_files_error("An error occurred in write_config_unit() while opening ", file_path);
-	fprintf(fp, "%s", unit_name);
-	fprintf(fp, "%s", " = ");
-	fprintf(fp, "%s\n", unit_desc);
+		fprintf(stderr, "An error occurred while writing to: %s.\n", file_path);
+	fprintf(fp, "#%s\n%s = \n\n", unit_desc, unit_name);
 	fclose(fp);	
 }
 
@@ -113,7 +110,7 @@ char *read_config_unit(char *file_path, const char *unit_name) {
 
 	fp = fopen(file_path, "r");
 	if(fp == NULL) //Check if error occurred
-		handle_files_error("An error occurred in read_config_file() while reading ", file_path);
+		fprintf(stderr, "An error occurred while reading: %s.\n", file_path);
 	memset(read_configs, '\0', sizeof(read_configs)); //Make sure the static array is empty 
 	//Loop in the file's content 
 	while(fgets(unit_buffer, 400, fp) != NULL) { 
@@ -123,6 +120,11 @@ char *read_config_unit(char *file_path, const char *unit_name) {
 		if(config_status) { //If list was found
 			if(read_list_syntax(unit_buffer, read_configs, sizeof(read_configs))) //If reading list
 				continue; //read the next line of the list
+			else if(read_list_syntax(unit_buffer, read_configs, sizeof(read_configs)) == -1) {
+				fprintf(stderr, "An error occurred while reading unit: %s.\nSize is invalid!\n", unit_name);
+				fclose(fp);
+				exit(EXIT_FAILURE);
+			}
 			fclose(fp);
 			return read_configs;
 		}
@@ -137,7 +139,11 @@ char *read_config_unit(char *file_path, const char *unit_name) {
 				continue; 
 			}
 			else {
-				read_reg_syntax(configs_beginning, read_configs, sizeof(read_configs));
+				if(read_reg_syntax(configs_beginning, read_configs, sizeof(read_configs)) == -1) { 
+					fprintf(stderr, "An error occurred while reading unit: %s.\nSize is invalid!\n", unit_name);
+					fclose(fp);
+					exit(EXIT_FAILURE);
+				}
 				fclose(fp);
 				return read_configs;
 			}
@@ -150,24 +156,23 @@ char *read_config_unit(char *file_path, const char *unit_name) {
 
 /*
 *This function reads the regular configurations syntax,
-*Then passes it to the config_buffer.
+*Then passes it to the config_buffer. If there was a buffer 
+*overflow the function will return -1, otherwise 0.
 */
-void read_reg_syntax(char *config_beginning, char *configs_buffer, int buffer_size) {
+int read_reg_syntax(char *config_beginning, char *configs_buffer, int buffer_size) {
 	int i = 0;
 
 	while(1) 
 		switch(config_beginning[i]) {
 			case '\n':
 				configs_buffer[i] = '\0'; //teminate line
-				return; //exit
+				return 0; //exit
 			case '\0': //Line is terminated
-				return; //exit
+				return 0; //exit
 			default:
 				//Check for overflow
-				if(check_input_size(buffer_size, i+1)) {
-					fprintf(stderr, "The size of the inserted string in config_man.c -> read_reg_syntax is invalid.\n");
-					exit(EXIT_FAILURE);
-				}
+				if(i+1 > buffer_size) 
+					return -1;
 				//insert char into the configs_buffer
 				configs_buffer[i] = config_beginning[i];
 				i++;
@@ -177,7 +182,8 @@ void read_reg_syntax(char *config_beginning, char *configs_buffer, int buffer_si
 
 /*
 *This function will read the syntax of a list, if finished reading itll 
-*return 0, if still reading it will return 1 to read the next line.
+*return 0, if still reading it will return 1 to read the next line, if 
+*overflow occured -1 is returned.
 */
 int read_list_syntax(char *line_beginning, char *configs_buffer, int buffer_size) {
 	int char_cnt, i;
@@ -193,18 +199,14 @@ int read_list_syntax(char *line_beginning, char *configs_buffer, int buffer_size
 				break;
 			case '\n': //Convert to one space 
 				//Make sure there is no overflow
-				if(check_input_size(buffer_size, char_cnt+1)) {
-					fprintf(stderr, "The size of the inserted string in config_man.c -> read_list_syntax is invalid.\n");
-					exit(EXIT_FAILURE);
-				}
+				if(char_cnt+1 > buffer_size)
+					return -1; 
 				configs_buffer[char_cnt] = ' ';
 				return 1; //Read next line
 			default:
 				//Make sure there is no overflow
-				if(check_input_size(buffer_size, char_cnt+1)) {
-					fprintf(stderr, "The size of the inserted string in config_man.c -> read_list_syntax is invalid.\n");
-					exit(EXIT_FAILURE);
-				}
+				if(char_cnt+1 > buffer_size)
+					return -1;
 				configs_buffer[char_cnt] = line_beginning[i];
 				char_cnt++;
 				break;
@@ -227,10 +229,10 @@ int check_unit_existence(const char *unit_name, char *line_begin) {
 	//Get unit name
 	for(i=0; line_begin[i]!='\n' && line_begin[i]!='\t' && line_begin[i]!=' ' && line_begin[i]!='\0'; i++) {
 		//Make sure there is no overflow
-		if(check_input_size(sizeof(unit_to_check), i+1)) {
-					fprintf(stderr, "The size of the inserted string in config_man.c -> check_unit_existence is invalid.\n");
-					exit(EXIT_FAILURE);
-				} 
+		if(i+1 > sizeof(unit_to_check)) {
+			fprintf(stderr, "An error occurred while reading unit: %s.\nSize is invalid!\n", unit_name);
+			exit(EXIT_FAILURE);
+		} 
 		unit_to_check[i] = line_begin[i];
 	}
 	if(strcmp(unit_name, unit_to_check) == 0) //If equal 
