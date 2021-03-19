@@ -14,8 +14,10 @@ int check_file_existence(char *file_path) {
 	FILE *fp;
 
 	fp = fopen(file_path, "r");
-	if(fp == NULL) //if file doesnt exists 
+	if(fp == NULL) { //if file doesnt exists 
+		fprintf(stderr, "Error occured due to missing configurations file.\n");
 		return 0;
+	}
 	fclose(fp);
 	return 1;
 }
@@ -24,7 +26,7 @@ int check_file_existence(char *file_path) {
 *A function to create a configuration file with the given path.
 *Then it'll write a comentted discription and instruction for this file.
 */ 
-void create_config_file(char *file_path, const char *description) {
+int create_config_file(char *file_path, const char *description) {
 	FILE *fp;
 	const char *config_instruct = {
 		"################################################################\n"
@@ -74,25 +76,31 @@ void create_config_file(char *file_path, const char *description) {
 	};
 
 	fp = fopen(file_path, "w");
-	if(fp == NULL) //Check if error occurred
+	if(fp == NULL) { //Check if error occurred
 		fprintf(stderr, "An error occurred while creating: %s.\n", file_path);
+		return -1;
+	}
 	fprintf(fp, "%s\n", description);
 	fprintf(fp, "%s\n", config_instruct);
 	fclose(fp);
+	return 0;
 }
 
 /*
 *This function takes a unit name and a description then it'll 
 *write the description to it so youll know how to configure it.
 */
-void write_config_unit(char *file_path, const char *unit_name, const char *unit_desc) {
+int write_config_unit(char *file_path, const char *unit_name, const char *unit_desc) {
 	FILE *fp;
 
 	fp = fopen(file_path, "a");
-	if(fp == NULL) //Check if error occurred
-		fprintf(stderr, "An error occurred while writing to: %s.\n", file_path);
-	fprintf(fp, "#%s\n%s = \n\n", unit_desc, unit_name);
-	fclose(fp);	
+	if(fp == NULL) {//Check if error occurred
+		fprintf(stderr, "An error occurred while writing to: %s\n", file_path);
+		return -1;
+	}
+	fprintf(fp, "%s = %s\n\n", unit_name, unit_desc);
+	fclose(fp);
+	return 0;	
 }
 
 /*
@@ -103,33 +111,41 @@ void write_config_unit(char *file_path, const char *unit_name, const char *unit_
 */
 char *read_config_unit(char *file_path, const char *unit_name) {
 	FILE *fp;
-	char unit_buffer[400]; //Buffer for the unit name and its configs 
+	char unit_buffer[500]; //Buffer for the unit name and its configs 
 	char *configs_beginning; //Pointer to the targeted unit's configs beginning
 	static char read_configs[500]; //Array for the read configs
 	unsigned int config_status = 0; //1 = list, 0 = one line configurations
+	int status;
 
 	fp = fopen(file_path, "r");
-	if(fp == NULL) //Check if error occurred
-		fprintf(stderr, "An error occurred while reading: %s.\n", file_path);
+	if(fp == NULL) { //Check if error occurred
+		fprintf(stderr, "An error occurred reading: %s\n", file_path);
+		return NULL;
+	}
 	memset(read_configs, '\0', sizeof(read_configs)); //Make sure the static array is empty 
 	//Loop in the file's content 
-	while(fgets(unit_buffer, 400, fp) != NULL) { 
+	while(fgets(unit_buffer, sizeof(unit_buffer), fp) != NULL) { 
 		//If the beginning of a line is commented or empty
 		if(*unit_buffer=='#' || *unit_buffer=='\n' || *unit_buffer=='\0') 
 			continue; //Ignore and read next line
 		if(config_status) { //If list was found
-			if(read_list_syntax(unit_buffer, read_configs, sizeof(read_configs))) //If reading list
-				continue; //read the next line of the list
-			else if(read_list_syntax(unit_buffer, read_configs, sizeof(read_configs)) == -1) {
-				fprintf(stderr, "An error occurred while reading unit: %s.\nSize is invalid!\n", unit_name);
+			if((status=read_list_syntax(unit_buffer, read_configs, sizeof(read_configs))) == -1) {
+				fprintf(stderr, "An error occurred while reading unit: %s.\nOverflow was detected!\n", unit_name);
 				fclose(fp);
-				exit(EXIT_FAILURE);
+				return NULL;
 			}
+			else if(status) //If reading list
+				continue; //read the next line of the list
 			fclose(fp);
 			return read_configs;
 		}
 		else {
-			if(check_unit_existence(unit_name, unit_buffer))  //If unit wasnt found in line
+			if((status=check_unit_existence(unit_name, unit_buffer)) == -1) {
+				fprintf(stderr, "An error occurred while reading unit: %s.\nOverflow was detected!\n", unit_name);
+				fclose(fp);
+				return NULL;
+			}
+			if(status)  //If unit wasnt found in line
 				continue; //Read the next one 
 			/*The address of the beginning of the unit's configurations =
 			beginning of the line + len of the unit name + 3 bytes (2 spaces and '=' sign)*/
@@ -140,9 +156,9 @@ char *read_config_unit(char *file_path, const char *unit_name) {
 			}
 			else {
 				if(read_reg_syntax(configs_beginning, read_configs, sizeof(read_configs)) == -1) { 
-					fprintf(stderr, "An error occurred while reading unit: %s.\nSize is invalid!\n", unit_name);
+					fprintf(stderr, "An error occurred while reading unit: %s.\nOverflow was detected!\n", unit_name);
 					fclose(fp);
-					exit(EXIT_FAILURE);
+					return NULL;
 				}
 				fclose(fp);
 				return read_configs;
@@ -151,6 +167,7 @@ char *read_config_unit(char *file_path, const char *unit_name) {
 	}
 
 	fclose(fp);
+	fprintf(stderr, "Error occured while searching for unit: %s.\n", unit_name);
 	return NULL;
 }
 
@@ -165,6 +182,8 @@ int read_reg_syntax(char *config_beginning, char *configs_buffer, int buffer_siz
 	while(1) 
 		switch(config_beginning[i]) {
 			case '\n':
+				if(i+1 > buffer_size) 
+					return -1;
 				configs_buffer[i] = '\0'; //teminate line
 				return 0; //exit
 			case '\0': //Line is terminated
@@ -220,7 +239,7 @@ int read_list_syntax(char *line_beginning, char *configs_buffer, int buffer_size
 *of the unit's line and it then it finds the unit's name which is
 *the first word then it checks if the founded unit and the passed 
 *one are equal and the same.
-*0 = equal, 1 = not equal
+*0 = equal, 1 = not equal, -1 error.
 */
 int check_unit_existence(const char *unit_name, char *line_begin) {
 	unsigned int i;
@@ -229,13 +248,11 @@ int check_unit_existence(const char *unit_name, char *line_begin) {
 	//Get unit name
 	for(i=0; line_begin[i]!='\n' && line_begin[i]!='\t' && line_begin[i]!=' ' && line_begin[i]!='\0'; i++) {
 		//Make sure there is no overflow
-		if(i+1 > sizeof(unit_to_check)) {
-			fprintf(stderr, "An error occurred while reading unit: %s.\nSize is invalid!\n", unit_name);
-			exit(EXIT_FAILURE);
-		} 
+		if(i+1 > sizeof(unit_to_check))
+			return -1;
 		unit_to_check[i] = line_begin[i];
 	}
-	if(strcmp(unit_name, unit_to_check) == 0) //If equal 
+	if(strcmp(unit_name, unit_to_check) == 0)
 		return 0;
 	else //Not equal
 		return 1;

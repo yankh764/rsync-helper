@@ -7,9 +7,10 @@ typedef struct {
 	int year;
 } date;
 
-void delete_dirs(char *);
+int rm_dir(char *);
 void get_date(date *);
 char *make_backup_dir(char *, date);
 void backup_sys(const char *, char *);
+char *split_dirs_paths(char *, unsigned int *);
 
 #endif
