@@ -32,7 +32,7 @@ It'll create a configuration file in the ~/.config with the name sys_backup.
 Configure it to your needs and prefrences -all instructions are written there-.  
 Then make sure that the storage device is mounted, run the program one more time   
 by typing:    
-	```backup```
+	```backup```    
 It should execute and do all the cleaning process, create a backup directory  
 in storage device then it'll backup all your system there.  
 
