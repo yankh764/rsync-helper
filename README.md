@@ -11,7 +11,8 @@ sure to configure the file correctly and properly.
 ## Dependencies
 1. rsync (Backup program).  
 2. gcc (C compiler).   
-3. git (to clone this repo).  
+3. git (to clone this repo).
+     
 You can install all these packages using your distribution's package manager.  
 
 ## Usage
