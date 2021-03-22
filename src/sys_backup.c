@@ -1,118 +1,14 @@
-/*
-*This program will make some cleaning that you regularly do 
-*before the full system backup. And then itll create new dir 
-*in your storage device with date, to make the system backup in
-*it useng rsync. The program will use system() to connect all the
-*command line tools together and automate this process. Lastly 
-*its good to note that tho program reads all the commands and 
-*your customaized cleaning process from a config file with the 
-*following path: ~/.config/sys_backup
-*/
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <dirent.h>
-#include "config_man.h" //For config files managment 
+#include <errno.h>
 #include "sys_backup.h"
-
-int main(int argc, char *argv[]) {
-	const char *config_desc = {
-		"################################################################\n"
-		"# This configuration file purposes are to provide to the       #\n"
-		"# sys_backup.c program the right cleaning process and storage  #\n"
-		"# device path, customized to your own needs and preferences.   #\n"
-		"################################################################"
-	};
-	const char *units_list[] = {
-		"DirsToClean", "CleaningCommands", "DevicePath", 
-		"RsyncCommand", "\0"
-	};
-	const char *units_desc[] = {
-		"Dirs path you regularly clean, like some cache dirs",
-		"{\n"
-		"\tCommands for cleaning your sysem, like:\n"
-		"\tsudo pacman -Sc (for deleting uninstalled packages\n"
-		"\tfrom the cache in arch based distros)\n"
-		"}", 
-		"Your storage device path hdd, usb or whatever you use",  
-		"sudo rsync -aAXHv --exclude={\"/dev/*\",\"/proc/*\",\"/sys/*\""
-		",\"/tmp/*\",\"/run/*\",\"/mnt/*\",\"/media/*\",\"/lost+found\"} /", 
-		"\0"
-	};
-	char *config_path = ".config/sys_backup";
-	char *home = getenv("HOME");
-	char config_full_path[strlen(home)+strlen(config_path)+1];
-	char *configurations, *backup_path, *path_ptr;
-	int opt, status;
-	unsigned int i;
-	date dir_name;
-
-	/*Prepare configurations file's full path*/
-	sprintf(config_full_path, "%s/%s", home, config_path);
-
-	while((opt = getopt(argc, argv, ":c")) != EOF) {
-		if(opt == 'c' && argc<3) {
-			if(create_config_file(config_full_path, config_desc)==-1) 
-				exit(EXIT_FAILURE);
-			for(i=0; *units_desc[i]!='\0'; i++)
-				if(write_config_unit(config_full_path, units_list[i], units_desc[i])==-1) 
-					exit(EXIT_FAILURE);
-			printf("%s was succesfully generated.\n", config_full_path);
-			return 0;
-		}
-		else if(argc > 3) {
-			fprintf(stderr, "Too many arguments were given.\n");
-			exit(EXIT_FAILURE);
-		}
-		else {
-			fprintf(stderr, "The argument %s is invalid.\n", argv[1]);
-			exit(EXIT_FAILURE);
-		}
-	}
-	if(check_file_existence(config_full_path) == 0) { //Check if config file exists
-		fprintf(stderr, "Reminder: you can always generate new one using the -c argument.\n");
-		exit(EXIT_FAILURE);
-	}
-	/*Read the configured units*/
-	if((configurations=read_config_unit(config_full_path, units_list[0])) == NULL) //Unit wasnt found
-		exit(EXIT_FAILURE);
-	/*Separate each dir path on its own to delete it*/
-	i = 0;
-	while((path_ptr=split_dirs_paths(configurations, &i)) != NULL) {
-		if(*path_ptr=='/' && path_ptr[1]=='\0'){ //If path is stand alone root tree
-			fprintf(stderr, "Error: you can't remove root tree.\n");
-			fprintf(stderr, "Please make sure that there is no sign of stand alone '/' in your configs.\n");
-			exit(EXIT_FAILURE);
-		}
-		if((status=rm_dir(path_ptr)) == -1)
-			exit(EXIT_FAILURE);
-		else if(status) //If cant open dir
-			printf("Couldn't open directory: %s\n", path_ptr);
-		else
-			printf("Removing: %s\n", path_ptr);
-		i++;
-	}
-
-	if((configurations=read_config_unit(config_full_path, units_list[1])) == NULL) //Unit wasnt found
-		exit(EXIT_FAILURE);
-	system(configurations);
-
-	if((configurations=read_config_unit(config_full_path, units_list[2])) == NULL) //Unit wasnt found
-		exit(EXIT_FAILURE);
-	get_date(&dir_name); //Get the date of today and pass it to dir_name
-
-	if((backup_path=make_backup_dir(configurations, dir_name))==NULL) //Create backup dir and get its path
-		exit(EXIT_FAILURE);
-	
-	if((configurations=read_config_unit(config_full_path, units_list[3])) == NULL) //Unit wasnt found
-		exit(EXIT_FAILURE);
-	backup_sys(configurations, backup_path); //Backup system in the created dir
-	return 0;
-}
-
 /*
 *Recursive function to delete directories.
 *Returns -1 for failure, 1 if cant open dir, otherwise 0.
@@ -125,8 +21,16 @@ int rm_dir(char *dir_path) {
 	char *new_path;
 
 	original_path_len = strlen(dir_path);
-	if((dr=opendir(dir_path)) == NULL) //If failed opening dir -Probably doesnt exists-. Skip it
-		return 1;
+	if((dr=opendir(dir_path)) == NULL) { //If failed opening dir
+		if(errno==ENOENT) { //If dir doesnt exists
+			fprintf(stderr, "Directory doesn't exists: %s\n", dir_path);
+			return 1;
+		}
+		else {
+			fprintf(stderr, "Error occured while opening directory: %s\n", dir_path);
+			return -1;
+		}
+	}
 
 	//Loop in dir's content
 	while((dp=readdir(dr))!=NULL) {
@@ -196,7 +100,7 @@ void get_date(date *date_struct) {
 */
 char *make_backup_dir(char *device_path, date date_struct) {
 	char dir_name[9];
-	static char *backup_path; 
+	char *backup_path; 
 
 	//Convert the date_array to a string so will use it to name the dir in the device path
 	sprintf(dir_name, "%02d-%02d-%02d", date_struct.day, date_struct.month, date_struct.year);
@@ -206,46 +110,104 @@ char *make_backup_dir(char *device_path, date date_struct) {
 		fprintf(stderr, "Error occured while allocating memory.\n");
 		return NULL;
 	}
-	sprintf(backup_path, "%s/%s", device_path, dir_name); 
+	sprintf(backup_path, "%s%s/", device_path, dir_name); 
 
-	if(mkdir(backup_path, S_IRUSR|S_IWUSR)==-1) { //If failed
+	if(mkdir(backup_path, S_IRWXU)==-1) { //If failed
 		fprintf(stderr, "Error occured while creating directory: %s\n", backup_path);
 		free(backup_path); 
 		return NULL;
 	}
+	printf("Created: %s\n", backup_path);
 	return backup_path;
 }
 
 /*
-*This function will make the full system backup using rsync to the passed dir path.
+*This function is going to split a read list of configurations
+*into a separated lines, then return a pointer to it. NULL for 
+*failure.
 */
-void backup_sys(const char *command, char *backup_path) {
-	char full_command[strlen(command)+strlen(backup_path)+sizeof("/")];
+char *split_configs(char *configs, unsigned int *i_in_configs) {
+	static char line[600];
+	unsigned int i;
 
-	/*Prepare command*/
-	sprintf(full_command, "%s %s/", command, backup_path);
-	free(backup_path);
+	if(configs[*i_in_configs]=='\0') //If the beginning of configs is terminated
+		return NULL;
 
-	system(full_command); //Execute the command 
+	memset(line, '\0', sizeof(line)); //Make sure the static array is empty
+	for(i=0; configs[*i_in_configs]!='\0'; i++) { 
+		if(configs[*i_in_configs]=='\n') {
+			*i_in_configs = *i_in_configs + 1; //Skip it and break
+			break;
+		}
+		line[i] = configs[*i_in_configs];
+		*i_in_configs = *i_in_configs + 1;
+	}
+	return line;
+} 
+
+/*
+*This function will fork the parent process to create a
+*child process then execute commands using one of the exec
+*familie's functions. Return -1 for fork failure, 1 for execv() 
+*failure, otherwise 0.
+*/
+int exec_command(char *prog_name, char *commands[]) {
+	char prog_path[strlen("/usr/bin/")+strlen(prog_name)];
+	int status;
+	pid_t pid;
+	pid_t ret;
+
+	sprintf(prog_path, "/usr/bin/%s", prog_name);
+	pid = fork(); //Create a new child process
+	if(pid == -1) {//If failed to create new child
+		fprintf(stderr, "An error occured while creating a child process.\n");
+		return -1;
+	}
+	else if(pid != 0) { //If child process didnt start
+		while((ret = waitpid(pid, &status, 0)) == -1) { //Wait for child
+			if(errno != EINTR) { //If the waitpid() error isnt an interrupte signal
+				fprintf(stderr, "An error occured while waiting for the child process.\n");
+				return -1;
+			}
+		}
+	}
+	else 
+		if(execv(prog_path, commands)==-1) //If command wasnt found
+			return 1;
+	return 0; 
 }
 
 /*
-*This funcion is going to split all the paths that were
-*read in the DirsToClean unit then it will return a pointer
-*to it so the program could delete one dir at a time.
-*If finished converting all the paths return NULL.
+*This function gets a pointer to a line and then it 
+*gets the first word in yhr line and return a pointer to it.
 */
-char *split_dirs_paths(char *paths, unsigned int *i_in_paths) {
-	static char path[500];
-	unsigned int i;
+char *get_name(const char *line) {
+	static char name[200];
+	unsigned int i; 
 
-	if(paths[*i_in_paths]=='\0') //If the beginning of DirsToClean is terminated
-		return NULL;
-
-	memset(path, '\0', sizeof(path)); //Make sure the static array is empty
-	for(i=0; paths[*i_in_paths]!='\0' && paths[*i_in_paths]!=' '; i++) { 
-		path[i] = paths[*i_in_paths];
-		*i_in_paths = *i_in_paths + 1;
+	for(i=0; i<sizeof(name); i++) {
+		if(line[i]==' ' || line[i]=='\n' || line[i]=='\t') {
+			name[i] = '\0';
+			break;
+		}
+		name[i] = line[i];
 	}
-	return path;
+	if(*name=='\0') //If name is empty
+		return NULL;
+	return name;
 } 
+
+/*
+*This function is going to check if the line ends with any space, 
+*and modify it if it is since the exec_command and make_backup_dir()
+*functions are space sensitive.
+*/
+void clean_line(char *line) {
+	unsigned int i = 1;
+	int len = strlen(line);
+
+	while(line[len-i] == ' ') { //Clean line from spaces at the end
+		line[len-i] = '\0';
+		i++;
+	}
+}

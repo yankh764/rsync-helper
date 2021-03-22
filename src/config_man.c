@@ -53,22 +53,15 @@ int create_config_file(char *file_path, const char *description) {
 		"#    config_4                                                  #\n"
 		"# }  <- Don't forget to close the list                         #\n"
 		"#                                                              #\n"
-		"# If the list is group of commands you can add '&&' to the end #\n"
-		"# of each line. If the command requires root privileges you    #\n"
-		"# can just add sudo to the command. For example:               #\n"
-		"#                                                              #\n"
-		"# CommandsUnit = {                                             #\n"
-		"#    command 1 &&                                              #\n"
-		"#    sudo root_command 2 &&                                    #\n"
-		"#    command 3 &&                                              #\n"
-		"#    sudo root_command 3 &&                                    #\n"
-		"#    command 4                                                 #\n"
-		"# }                                                            #\n"
-		"#                                                              #\n"
-		"# Be aware that every new line in the list syntax is converted #\n"
-		"# into a space, and '}' terminates the list.                   #\n"
+		"# Be aware that '}' terminates the list.                       #\n"
 		"# Note: Please if you want to use indention for the list, only #\n"
 		"# use tabs, becuase they are ignored while reading a list.     #\n"
+		"# It's also good to note that in case the unit is a commands   #\n"
+		"# unit and this command requires root privileges, you can just #\n"
+		"# prepend 'sudo' to it like this:                              #\n"
+		"#                                                              #\n"
+		"# CommandsUnit = sudo root_command                             #\n"
+		"#                                                              #\n"
 		"# Lastly as you can see hashes ('#') are ignored.              #\n"
 		"# By the way, sorry for the hard syntax I really tried to make #\n"
 		"# as easy as I can and that's the result. I hope you like it :)#\n"
@@ -111,9 +104,9 @@ int write_config_unit(char *file_path, const char *unit_name, const char *unit_d
 */
 char *read_config_unit(char *file_path, const char *unit_name) {
 	FILE *fp;
-	char unit_buffer[500]; //Buffer for the unit name and its configs 
+	char unit_buffer[600]; //Buffer for the unit name and its configs 
 	char *configs_beginning; //Pointer to the targeted unit's configs beginning
-	static char read_configs[500]; //Array for the read configs
+	char *read_configs; //Array for the read configs
 	unsigned int config_status = 0; //1 = list, 0 = one line configurations
 	int status;
 
@@ -122,16 +115,21 @@ char *read_config_unit(char *file_path, const char *unit_name) {
 		fprintf(stderr, "An error occurred reading: %s\n", file_path);
 		return NULL;
 	}
-	memset(read_configs, '\0', sizeof(read_configs)); //Make sure the static array is empty 
+	read_configs = (char *) calloc(801, sizeof(char));
+	if(read_configs==NULL) {
+		fprintf(stderr, "An error occurred while allocating memory.\n");
+		return NULL;
+	}
 	//Loop in the file's content 
 	while(fgets(unit_buffer, sizeof(unit_buffer), fp) != NULL) { 
 		//If the beginning of a line is commented or empty
 		if(*unit_buffer=='#' || *unit_buffer=='\n' || *unit_buffer=='\0') 
 			continue; //Ignore and read next line
 		if(config_status) { //If list was found
-			if((status=read_list_syntax(unit_buffer, read_configs, sizeof(read_configs))) == -1) {
-				fprintf(stderr, "An error occurred while reading unit: %s.\nOverflow was detected!\n", unit_name);
+			if((status=read_list_syntax(unit_buffer, read_configs, 801)) == -1) {
+				fprintf(stderr, "An overflow was detected while reading unit: %s.\n", unit_name);
 				fclose(fp);
+				free(read_configs);
 				return NULL;
 			}
 			else if(status) //If reading list
@@ -140,11 +138,8 @@ char *read_config_unit(char *file_path, const char *unit_name) {
 			return read_configs;
 		}
 		else {
-			if((status=check_unit_existence(unit_name, unit_buffer)) == -1) {
-				fprintf(stderr, "An error occurred while reading unit: %s.\nOverflow was detected!\n", unit_name);
-				fclose(fp);
-				return NULL;
-			}
+			status=check_unit_existence(unit_name, unit_buffer);
+			
 			if(status)  //If unit wasnt found in line
 				continue; //Read the next one 
 			/*The address of the beginning of the unit's configurations =
@@ -155,9 +150,10 @@ char *read_config_unit(char *file_path, const char *unit_name) {
 				continue; 
 			}
 			else {
-				if(read_reg_syntax(configs_beginning, read_configs, sizeof(read_configs)) == -1) { 
-					fprintf(stderr, "An error occurred while reading unit: %s.\nOverflow was detected!\n", unit_name);
+				if(read_reg_syntax(configs_beginning, read_configs, 801) == -1) { 
+					fprintf(stderr, "An overflow was detected while reading unit: %s.\n", unit_name);
 					fclose(fp);
+					free(read_configs);
 					return NULL;
 				}
 				fclose(fp);
@@ -167,6 +163,7 @@ char *read_config_unit(char *file_path, const char *unit_name) {
 	}
 
 	fclose(fp);
+	free(read_configs);
 	fprintf(stderr, "Error occured while searching for unit: %s.\n", unit_name);
 	return NULL;
 }
@@ -216,11 +213,11 @@ int read_list_syntax(char *line_beginning, char *configs_buffer, int buffer_size
 				return 0; //Finished reading list
 			case '\t': //Ignore indention 
 				break;
-			case '\n': //Convert to one space 
+			case '\n':
 				//Make sure there is no overflow
 				if(char_cnt+1 > buffer_size)
-					return -1; 
-				configs_buffer[char_cnt] = ' ';
+					return -1;
+				configs_buffer[char_cnt] = line_beginning[i];
 				return 1; //Read next line
 			default:
 				//Make sure there is no overflow
@@ -243,13 +240,14 @@ int read_list_syntax(char *line_beginning, char *configs_buffer, int buffer_size
 */
 int check_unit_existence(const char *unit_name, char *line_begin) {
 	unsigned int i;
-	char unit_to_check[50]; //Array for the unit name that needs to be checked
+	int unit_name_len = strlen(unit_name);
+	char unit_to_check[unit_name_len]; //Array for the unit name that needs to be checked
 
-	//Get unit name
-	for(i=0; line_begin[i]!='\n' && line_begin[i]!='\t' && line_begin[i]!=' ' && line_begin[i]!='\0'; i++) {
-		//Make sure there is no overflow
-		if(i+1 > sizeof(unit_to_check))
-			return -1;
+	for(i=0; i<unit_name_len+1; i++) {
+		if(line_begin[i]==' ' || line_begin[i]=='\t' || line_begin[i]=='\n') {
+			unit_to_check[i] = '\0';
+			break;
+		}
 		unit_to_check[i] = line_begin[i];
 	}
 	if(strcmp(unit_name, unit_to_check) == 0)
