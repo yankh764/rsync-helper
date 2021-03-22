@@ -12,12 +12,7 @@ sure to configure the file correctly and properly.
 1. rsync (Backup program).  
 2. gcc (C compiler).   
 3. git (to clone this repo).  
-<<<<<<< HEAD
-   
-You can install these packages using your distribution's package manager.  
-=======
 You can install all these packages using your distribution's package manager.  
->>>>>>> general
 
 ## Usage
 1. Make sure all the dependencies are installed, if not install them.  
