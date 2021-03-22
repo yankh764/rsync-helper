@@ -1,19 +1,23 @@
-# Full System Backup
+# Rsync Helper and a Time Saver
 For every linux geek who can't stop tinkering the system, can't  
 stop cleaning it and do all the house keeping to make it the best,  
 this repo is for you.  
-I just created rsync and few commad line tools wrraper program that can  
-do all the full system backup and cleaning process automatically and save  
-a lot of time.  
+I just created rsync and few commad line tools helper and a wrraper program that can  
+do all the full system backup and cleaning process automatically and could save  
+you a lot of time.  
 This program will read configurations from ~/.config/sys_backup, so just make  
-sure to configure the file correctly.
+sure to configure the file correctly and properly.
 
 ## Dependencies
 1. rsync (Backup program).  
 2. gcc (C compiler).   
 3. git (to clone this repo).  
+<<<<<<< HEAD
    
 You can install these packages using your distribution's package manager.  
+=======
+You can install all these packages using your distribution's package manager.  
+>>>>>>> general
 
 ## Usage
 1. Make sure all the dependencies are installed, if not install them.  
@@ -27,16 +31,20 @@ You can install these packages using your distribution's package manager.
 	```sudo make install```   
 	```make clean```
 
-4. Run the program from terminal by typing backup.  
+4. Run the program using the -c option by typing in the terminal:    
+	```backup -c```  
 It'll create a configuration file in the ~/.config with the name sys_backup.
 Configure it to your needs and prefrences -all instructions are written there-.  
-Then make sure that the storage device is mounted, run the program one more time,  
-it should execute and do all the cleaning process, create a backup directory  
+Then make sure that the storage device is mounted, run the program one more time   
+by typing:    
+	```backup```    
+It should execute and do all the cleaning process, create a backup directory  
 in storage device then it'll backup all your system there.  
 
 ## Latest Updates
 1. Simplified the syntax of the configuration file a little bit.
 2. Added a make file to simplify the compilation process.
 3. Added header guards.
-4. Added the option to configure rsync command so you can execlude whatever you want.
-5. Edited the config_example so it will be up to date and relevant.
+4. Improved program's security.
+5. Added the option to configure rsync command so you can execlude whatever you want.
+6. Edited the config_example so it will be up to date and relevant.
