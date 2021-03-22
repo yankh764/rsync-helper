@@ -1,4 +1,4 @@
-# Full System Backup
+# Rsync Helper and a Time Saver
 For every linux geek who can't stop tinkering the system, can't  
 stop cleaning it and do all the house keeping to make it the best,  
 this repo is for you.  
