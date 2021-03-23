@@ -13,7 +13,7 @@
 *Recursive function to delete directories.
 *Returns -1 for failure, 1 if cant open dir, otherwise 0.
 */
-int rm_dir(char *dir_path) {
+int rm_dir(const char *dir_path) {
 	DIR *dr;
 	struct dirent *dp;
 	struct stat statbuf;
@@ -98,7 +98,7 @@ void get_date(date *date_struct) {
 *date of today and create a backup dir in the passed path 
 *passed date. Then it will return the full path of the created dir. 
 */
-char *make_backup_dir(char *device_path, date date_struct) {
+char *make_backup_dir(const char *device_path, date date_struct) {
 	char dir_name[9];
 	char *backup_path; 
 
@@ -151,7 +151,7 @@ char *split_configs(char *configs, unsigned int *i_in_configs) {
 *familie's functions. Return -1 for fork failure, 1 for execv() 
 *failure, otherwise 0.
 */
-int exec_command(char *prog_name, char *commands[]) {
+int exec_command(const char *prog_name, char *commands[]) {
 	char prog_path[strlen("/usr/bin/")+strlen(prog_name)];
 	int status;
 	pid_t pid;

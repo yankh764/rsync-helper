@@ -10,7 +10,7 @@
 *The function will check if the given file in the 
 *file path exists. It retruns 1 for yes and 0 for no.
 */
-int check_file_existence(char *file_path) {
+int check_file_existence(const char *file_path) {
 	FILE *fp;
 
 	fp = fopen(file_path, "r");
@@ -26,7 +26,7 @@ int check_file_existence(char *file_path) {
 *A function to create a configuration file with the given path.
 *Then it'll write a comentted discription and instruction for this file.
 */ 
-int create_config_file(char *file_path, const char *description) {
+int create_config_file(const char *file_path, const char *description) {
 	FILE *fp;
 	const char *config_instruct = {
 		"################################################################\n"
@@ -83,7 +83,7 @@ int create_config_file(char *file_path, const char *description) {
 *This function takes a unit name and a description then it'll 
 *write the description to it so youll know how to configure it.
 */
-int write_config_unit(char *file_path, const char *unit_name, const char *unit_desc) {
+int write_config_unit(const char *file_path, const char *unit_name, const char *unit_desc) {
 	FILE *fp;
 
 	fp = fopen(file_path, "a");
@@ -102,7 +102,7 @@ int write_config_unit(char *file_path, const char *unit_name, const char *unit_d
 *for the desired unit's confgis. If the unit exists it will 
 *return a pointer to it, otherwise it will return NULL.
 */
-char *read_config_unit(char *file_path, const char *unit_name) {
+char *read_config_unit(const char *file_path, const char *unit_name) {
 	FILE *fp;
 	char unit_buffer[600]; //Buffer for the unit name and its configs 
 	char *configs_beginning; //Pointer to the targeted unit's configs beginning

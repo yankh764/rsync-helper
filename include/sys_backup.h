@@ -7,11 +7,11 @@ typedef struct {
 	int year;
 } date;
 
-int rm_dir(char *);
+int rm_dir(const char *);
 void get_date(date *);
-char *make_backup_dir(char *, date);
+char *make_backup_dir(const char *, date);
 char *split_configs(char *, unsigned int *);
-int exec_command(char *, char **);
+int exec_command(const char *, char **);
 char *get_name(const char *);
 void clean_line(char *);
 
