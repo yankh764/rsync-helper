@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
 	char config_full_path[strlen(home)+strlen(config_path)+1];
 	char *configurations, *backup_path, *ptr, *prog_name;
 	char *command_arg, *commands_list[7];
+	char new_prog_name[200+strlen("/usr/bin/")];
 	int opt, status;
 	unsigned int i, len;
 	date dir_name;
@@ -114,8 +115,6 @@ int main(int argc, char *argv[]) {
 		}
 		/*Prepare command*/
 		if(strcmp(prog_name, "sudo") == 0) { //If command starts with sudo
-			char new_prog_name[200+strlen("/usr/bin/")];
-			
 			commands_list[0] = "sudo";
 			prog_name = get_name(ptr+strlen("sudo ")); //Get the name after sudo
 			sprintf(new_prog_name, "/usr/bin/%s", prog_name); 
