@@ -42,5 +42,5 @@ in storage device then it'll backup all your system there.
 2. Added a make file to simplify the compilation process.
 3. Added header guards.
 4. Improved program's security.
-5. Added the option to configure rsync command so you can execlude whatever you want.
+5. Added the option to configure rsync command so you can backup whatever you wish.
 6. Edited the config_example so it will be up to date and relevant.
