@@ -264,7 +264,6 @@ int main(int argc, char *argv[]) {
 		if(status)
 			_Exit(127);
 		len += strlen(dir_to_backup) + BLANK; //To ommit the already backed up dirs
-		break;
 	}
 	free(commands_list[2]);
 	free(commands_list[4]);
