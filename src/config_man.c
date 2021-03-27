@@ -4,23 +4,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <ctype.h>
 #include "config_man.h"
 
-/*
-*The function will check if the given file in the 
-*file path exists. It retruns 1 for yes and 0 for no.
-*/
-int check_file_existence(const char *file_path) {
-	FILE *fp;
-
-	fp = fopen(file_path, "r");
-	if(fp == NULL) { //if file doesnt exists 
-		fprintf(stderr, "Error occured due to missing configurations file.\n");
-		return 0;
-	}
-	fclose(fp);
-	return 1;
-}
+#define CONFIGS 1001 //Size of read_configs
+#define UNITS 700 //Size of unit_buffer
 
 /*
 *A function to create a configuration file with the given path.
@@ -70,12 +59,20 @@ int create_config_file(const char *file_path, const char *description) {
 
 	fp = fopen(file_path, "w");
 	if(fp == NULL) { //Check if error occurred
-		fprintf(stderr, "An error occurred while creating: %s.\n", file_path);
+		fprintf(stderr, "An error occurred while creating: %s\n", file_path);
 		return -1;
 	}
-	fprintf(fp, "%s\n", description);
-	fprintf(fp, "%s\n", config_instruct);
-	fclose(fp);
+
+	fprintf(fp, "%s\n%s\n", description, config_instruct);
+	if(ferror(fp)) {
+		fprintf(stderr, "An error occurred while creating: %s\n", file_path);
+		return -1;
+	}
+
+	if(fclose(fp)==EOF) {
+		fprintf(stderr, "An error occurred while closing: %s\n", file_path);
+		return -1;
+	}
 	return 0;
 }
 
@@ -91,8 +88,17 @@ int write_config_unit(const char *file_path, const char *unit_name, const char *
 		fprintf(stderr, "An error occurred while writing to: %s\n", file_path);
 		return -1;
 	}
+
 	fprintf(fp, "%s = %s\n\n", unit_name, unit_desc);
-	fclose(fp);
+	if(ferror(fp)) {
+		fprintf(stderr, "An error occurred while writing to: %s\n", file_path);
+		return -1;
+	}
+
+	if(fclose(fp)==EOF) {
+		fprintf(stderr, "An error occurred while closing: %s\n", file_path);
+		return -1;
+	}
 	return 0;	
 }
 
@@ -104,43 +110,62 @@ int write_config_unit(const char *file_path, const char *unit_name, const char *
 */
 char *read_config_unit(const char *file_path, const char *unit_name) {
 	FILE *fp;
-	char unit_buffer[600]; //Buffer for the unit name and its configs 
+	char unit_buffer[UNITS]; //Buffer for the unit name and its configs 
 	char *configs_beginning; //Pointer to the targeted unit's configs beginning
-	char *read_configs; //Array for the read configs
+	char *read_configs; //Already read configs
+	char unit_to_check[200]; //Unit name to check 
 	unsigned int config_status = 0; //1 = list, 0 = one line configurations
-	int status;
 
 	fp = fopen(file_path, "r");
 	if(fp == NULL) { //Check if error occurred
-		fprintf(stderr, "An error occurred reading: %s\n", file_path);
+		fprintf(stderr, "An error occured while opening file: %s\n", file_path);
 		return NULL;
 	}
-	read_configs = (char *) calloc(801, sizeof(char));
+
+	read_configs = (char *) calloc(CONFIGS, sizeof(char));
 	if(read_configs==NULL) {
 		fprintf(stderr, "An error occurred while allocating memory.\n");
+		if(fclose(fp)==EOF)
+			fprintf(stderr, "An error occurred while closing: %s\n", file_path);
 		return NULL;
 	}
+
 	//Loop in the file's content 
 	while(fgets(unit_buffer, sizeof(unit_buffer), fp) != NULL) { 
+		if(ferror(fp)) {
+			fprintf(stderr, "An error occurred while reading: %s\n", file_path);
+			free(read_configs);
+			if(fclose(fp)==EOF)
+				fprintf(stderr, "An error occurred while closing: %s\n", file_path);
+			return NULL;
+		}
+
 		//If the beginning of a line is commented or empty
 		if(*unit_buffer=='#' || *unit_buffer=='\n' || *unit_buffer=='\0') 
 			continue; //Ignore and read next line
+
 		if(config_status) { //If list was found
-			if((status=read_list_syntax(unit_buffer, read_configs, 801)) == -1) {
-				fprintf(stderr, "An overflow was detected while reading unit: %s.\n", unit_name);
-				fclose(fp);
+			if(read_list_syntax(unit_buffer, read_configs))
+				continue; //read the next line of the list
+			if(fclose(fp)==EOF) {
 				free(read_configs);
+				fprintf(stderr, "An error occurred while closing: %s\n", file_path);
 				return NULL;
 			}
-			else if(status) //If reading list
-				continue; //read the next line of the list
-			fclose(fp);
 			return read_configs;
 		}
+
 		else {
-			status=check_unit_existence(unit_name, unit_buffer);
-			
-			if(status)  //If unit wasnt found in line
+			if(isspace(*unit_buffer)) //To ignore list's indentions
+				continue;
+			//Get unit name from the buffer to compare it
+			if(get_name(unit_buffer, unit_to_check, sizeof(unit_to_check))==-1) { 
+				free(read_configs);
+				if(fclose(fp)==EOF)
+					fprintf(stderr, "An error occurred while closing: %s\n", file_path);
+				return NULL;
+			}
+			if(strcmp(unit_name, unit_to_check)) //If unit wasnt found in line
 				continue; //Read the next one 
 			/*The address of the beginning of the unit's configurations =
 			beginning of the line + len of the unit name + 3 bytes (2 spaces and '=' sign)*/
@@ -150,20 +175,20 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 				continue; 
 			}
 			else {
-				if(read_reg_syntax(configs_beginning, read_configs, 801) == -1) { 
-					fprintf(stderr, "An overflow was detected while reading unit: %s.\n", unit_name);
-					fclose(fp);
+				read_reg_syntax(configs_beginning, read_configs);
+				
+				if(fclose(fp)==EOF) {
 					free(read_configs);
+					fprintf(stderr, "An error occurred while closing: %s\n", file_path);
 					return NULL;
 				}
-				fclose(fp);
 				return read_configs;
 			}
 		}
 	}
-
-	fclose(fp);
 	free(read_configs);
+	if(fclose(fp)==EOF)
+		fprintf(stderr, "An error occurred while closing: %s\n", file_path);
 	fprintf(stderr, "Error occured while searching for unit: %s.\n", unit_name);
 	return NULL;
 }
@@ -173,40 +198,31 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 *Then passes it to the config_buffer. If there was a buffer 
 *overflow the function will return -1, otherwise 0.
 */
-int read_reg_syntax(char *config_beginning, char *configs_buffer, int buffer_size) {
-	int i = 0;
+int read_reg_syntax(const char *config_beginning, char *configs_buffer) {
+	unsigned int i;
 
-	while(1) 
+	for(i=0; config_beginning[i]!='\0'; i++)
 		switch(config_beginning[i]) {
 			case '\n':
-				if(i+1 > buffer_size) 
-					return -1;
 				configs_buffer[i] = '\0'; //teminate line
 				return 0; //exit
-			case '\0': //Line is terminated
-				return 0; //exit
 			default:
-				//Check for overflow
-				if(i+1 > buffer_size) 
-					return -1;
 				//insert char into the configs_buffer
 				configs_buffer[i] = config_beginning[i];
-				i++;
 				break;
 			}
+	return 0;
 }
 
 /*
 *This function will read the syntax of a list, if finished reading itll 
-*return 0, if still reading it will return 1 to read the next line, if 
-*overflow occured -1 is returned.
+*return 0, if still reading it will return 1 to read the next line.
 */
-int read_list_syntax(char *line_beginning, char *configs_buffer, int buffer_size) {
-	int char_cnt, i;
+int read_list_syntax(const char *line_beginning, char *configs_buffer) {
+	unsigned int i;
+	size_t char_cnt = strlen(configs_buffer); //number of characters in configs_buffer
 
-	char_cnt = strlen(configs_buffer); //number of characters in configs_buffer
-	i = 0;  
-	while(1) { //Loop and read line until reaching '\n' or ';'
+	for(i=0; line_beginning[i]!='\0'; i++) //Loop and read line until reaching '\n' or ';'
 		switch(line_beginning[i]) {
 			case '}': //If end of list
 				configs_buffer[char_cnt] = '\0'; //terminate line
@@ -214,44 +230,85 @@ int read_list_syntax(char *line_beginning, char *configs_buffer, int buffer_size
 			case '\t': //Ignore indention 
 				break;
 			case '\n':
-				//Make sure there is no overflow
-				if(char_cnt+1 > buffer_size)
-					return -1;
 				configs_buffer[char_cnt] = line_beginning[i];
 				return 1; //Read next line
 			default:
-				//Make sure there is no overflow
-				if(char_cnt+1 > buffer_size)
-					return -1;
 				configs_buffer[char_cnt] = line_beginning[i];
 				char_cnt++;
 				break;
 		}
-		i++;
-	}
+	return 0; //Finished reading list
 }
 
 /*
-*This function takes a unit name and pointer to the beginning
-*of the unit's line and it then it finds the unit's name which is
-*the first word then it checks if the founded unit and the passed 
-*one are equal and the same.
-*0 = equal, 1 = not equal, -1 error.
+*This function is going to split a read list of configurations
+*into a separated lines, then return a pointer to it. NULL for 
+*failure.
 */
-int check_unit_existence(const char *unit_name, char *line_begin) {
+char *split_configs(const char *configs) {
+	char *line;
 	unsigned int i;
-	int unit_name_len = strlen(unit_name);
-	char unit_to_check[unit_name_len]; //Array for the unit name that needs to be checked
+	static int i_in_configs = 0;
 
-	for(i=0; i<unit_name_len+1; i++) {
-		if(line_begin[i]==' ' || line_begin[i]=='\t' || line_begin[i]=='\n') {
-			unit_to_check[i] = '\0';
+	if(configs[i_in_configs]=='\0') { //If the beginning of configs is terminated
+		i_in_configs = 0; //Reinitialize static variable to 0 so itll be usable next call
+		return NULL;
+	}
+
+	line = calloc(UNITS, sizeof(char));
+	if(line==NULL) {
+		fprintf(stderr, "An error occurred while allocating memory.\n");
+		return NULL;
+	}
+
+	for(i=0; configs[i_in_configs]!='\0'; i++) { 
+		if(configs[i_in_configs]=='\n') {
+			i_in_configs++; //Skip it and break
 			break;
 		}
-		unit_to_check[i] = line_begin[i];
+		line[i] = configs[i_in_configs];
+		i_in_configs++;
 	}
-	if(strcmp(unit_name, unit_to_check) == 0)
-		return 0;
-	else //Not equal
-		return 1;
+	return line;
+}
+
+/*
+*This function gets a pointer to a line and then it 
+*gets the first word in the line .
+*/
+int get_name(const char *line, char *name_buff, int buff_size) {
+	size_t i; 
+
+	if(isspace(*line)) { //If name starts with invalid char 
+		fprintf(stderr, "\nWarning!\n");
+		fprintf(stderr, "The line starts with a white space character: %s\n", line);
+		return -1;
+	}
+
+	else if(*line=='\0')
+		return -1;
+
+	for(i=0; i<buff_size; i++) {
+		if(isspace(line[i])) {
+			name_buff[i] = '\0';
+			break;
+		}
+		name_buff[i] = line[i];
+	}
+	return 0;
+} 
+
+/*
+*This function is going to check if the line ends with any space, 
+*and modify it to avoid space sesitivity errors
+*/
+void clean_line(char *line) {
+	unsigned int i;
+	size_t len = strlen(line);
+
+	i = 1;
+	while(isspace(line[len-i])) { //Clean line from spaces at the end
+		line[len-i] = '\0';
+		i++;
+	}
 }

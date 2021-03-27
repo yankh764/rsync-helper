@@ -10,9 +10,6 @@ typedef struct {
 int rm_dir(const char *);
 void get_date(date *);
 char *make_backup_dir(const char *, date);
-char *split_configs(char *, unsigned int *);
 int exec_command(const char *, char **);
-char *get_name(const char *);
-void clean_line(char *);
 
 #endif

@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include "sys_backup.h"
+
 /*
 *Recursive function to delete directories.
 *Returns -1 for failure, 1 if cant open dir, otherwise 0.
@@ -17,8 +18,8 @@ int rm_dir(const char *dir_path) {
 	DIR *dr;
 	struct dirent *dp;
 	struct stat statbuf;
-	unsigned int original_path_len, new_path_len;
 	char *new_path;
+	size_t original_path_len, new_path_len;
 
 	original_path_len = strlen(dir_path);
 	if((dr=opendir(dir_path)) == NULL) { //If failed opening dir
@@ -40,16 +41,19 @@ int rm_dir(const char *dir_path) {
         new_path_len = original_path_len + strlen(dp->d_name) + 2; //2 = '\0' and '/'
         new_path = (char *) malloc(new_path_len);
         if(new_path == NULL) {
-        	closedir(dr);
+        	if(closedir(dr)==-1)
+        		fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
+        	fprintf(stderr, "An error occured while allocating memory\n");
         	return -1;
         }
-        sprintf(new_path, "%s/%s", dir_path, dp->d_name);
-        //Get object status
+        snprintf(new_path, new_path_len+1, "%s/%s", dir_path, dp->d_name);
+        //Get object's status
         if(stat(new_path, &statbuf)==0) {
         	if(S_ISDIR(statbuf.st_mode)) { //If object is a directory 
         		if(rm_dir(new_path)==-1) { //Delete it 
         			free(new_path);
-        			closedir(dr);
+        			if(closedir(dr)==-1)
+        				fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
         			fprintf(stderr, "Error occured while removing directory: %s\n", new_path);
         			return -1;
         		}
@@ -57,7 +61,8 @@ int rm_dir(const char *dir_path) {
         	else {
         		if(unlink(new_path)==-1) { //Delte file
         			free(new_path);
-        			closedir(dr);
+        			if(closedir(dr)==-1)
+        				fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
         			fprintf(stderr, "Error occured while removing file: %s\n", new_path);
         			return -1;
         		}
@@ -66,12 +71,16 @@ int rm_dir(const char *dir_path) {
         }
         else {
         	free(new_path);
-        	closedir(dr);
+        	if(closedir(dr)==-1)
+        		fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
         	fprintf(stderr, "An unknown error occured.\n");
         	return -1;
         }
     }
-    closedir(dr);
+    if(closedir(dr)==-1) {
+        fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
+        return -1;
+    }
     rmdir(dir_path);
     return 0;
 }
@@ -101,16 +110,17 @@ void get_date(date *date_struct) {
 char *make_backup_dir(const char *device_path, date date_struct) {
 	char dir_name[9];
 	char *backup_path; 
+	int backup_path_size = sizeof(dir_name)+strlen(device_path)+1;
 
 	//Convert the date_array to a string so will use it to name the dir in the device path
-	sprintf(dir_name, "%02d-%02d-%02d", date_struct.day, date_struct.month, date_struct.year);
+	snprintf(dir_name, sizeof(dir_name)+1, "%02d-%02d-%02d", date_struct.day, date_struct.month, date_struct.year);
 	//Prepare the full backup path 
-	backup_path = (char *) malloc(sizeof(dir_name)+strlen(device_path)+1);
+	backup_path = (char *) malloc(backup_path_size);
 	if(backup_path == NULL) {
 		fprintf(stderr, "Error occured while allocating memory.\n");
 		return NULL;
 	}
-	sprintf(backup_path, "%s%s/", device_path, dir_name); 
+	snprintf(backup_path, backup_path_size+1, "%s%s/", device_path, dir_name); 
 
 	if(mkdir(backup_path, S_IRWXU)==-1) { //If failed
 		fprintf(stderr, "Error occured while creating directory: %s\n", backup_path);
@@ -120,30 +130,6 @@ char *make_backup_dir(const char *device_path, date date_struct) {
 	printf("Created: %s\n", backup_path);
 	return backup_path;
 }
-
-/*
-*This function is going to split a read list of configurations
-*into a separated lines, then return a pointer to it. NULL for 
-*failure.
-*/
-char *split_configs(char *configs, unsigned int *i_in_configs) {
-	static char line[600];
-	unsigned int i;
-
-	if(configs[*i_in_configs]=='\0') //If the beginning of configs is terminated
-		return NULL;
-
-	memset(line, '\0', sizeof(line)); //Make sure the static array is empty
-	for(i=0; configs[*i_in_configs]!='\0'; i++) { 
-		if(configs[*i_in_configs]=='\n') {
-			*i_in_configs = *i_in_configs + 1; //Skip it and break
-			break;
-		}
-		line[i] = configs[*i_in_configs];
-		*i_in_configs = *i_in_configs + 1;
-	}
-	return line;
-} 
 
 /*
 *This function will fork the parent process to create a
@@ -157,7 +143,7 @@ int exec_command(const char *prog_name, char *commands[]) {
 	pid_t pid;
 	pid_t ret;
 
-	sprintf(prog_path, "/usr/bin/%s", prog_name);
+	snprintf(prog_path, sizeof(prog_path)+1, "/usr/bin/%s", prog_name);
 	pid = fork(); //Create a new child process
 	if(pid == -1) {//If failed to create new child
 		fprintf(stderr, "An error occured while creating a child process.\n");
@@ -175,39 +161,4 @@ int exec_command(const char *prog_name, char *commands[]) {
 		if(execv(prog_path, commands)==-1) //If command wasnt found
 			return 1;
 	return 0; 
-}
-
-/*
-*This function gets a pointer to a line and then it 
-*gets the first word in yhr line and return a pointer to it.
-*/
-char *get_name(const char *line) {
-	static char name[200];
-	unsigned int i; 
-
-	for(i=0; i<sizeof(name); i++) {
-		if(line[i]==' ' || line[i]=='\n' || line[i]=='\t') {
-			name[i] = '\0';
-			break;
-		}
-		name[i] = line[i];
-	}
-	if(*name=='\0') //If name is empty
-		return NULL;
-	return name;
 } 
-
-/*
-*This function is going to check if the line ends with any space, 
-*and modify it if it is since the exec_command and make_backup_dir()
-*functions are space sensitive.
-*/
-void clean_line(char *line) {
-	unsigned int i = 1;
-	int len = strlen(line);
-
-	while(line[len-i] == ' ') { //Clean line from spaces at the end
-		line[len-i] = '\0';
-		i++;
-	}
-}
