@@ -7,8 +7,5 @@ int write_config_unit(const char *, const char *, const char *);
 char *read_config_unit(const char *, const char *);
 int read_reg_syntax(const char *, char *);
 int read_list_syntax(const char *, char *);
-char *split_configs(const char *);
-int get_name(const char *, char *, int);
-void clean_line(char *);
 
 #endif

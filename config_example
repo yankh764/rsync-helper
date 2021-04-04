@@ -43,22 +43,20 @@
 
 DirsToClean = {
 	/home/yan/.cache/spotify
-	/home/yan/.cache/mozilla/firefox/9jizeht4.default-release/thumbnails
+	/home/yan/.cache/mozilla/firefox/kxb7pztg.default-release-4/thumbnails
 	/home/yan/.cache/tracker3
-	/home/yan/.cache/mozilla/firefox/9jizeht4.default-release/cache2
+	/home/yan/.cache/mozilla/firefox/kxb7pztg.default-release-4/cache2
 	/home/yan/.cache/zoom
 	/home/yan/.cache/torbrowser/download/
 	/home/yan/.cache/yarn
 }
 
-CleaningCommands = {
-	paccache -ruk2
-	sudo pacman -Sc
-	sudo journalctl --vacuum-time=1weeks
+CleaningCommands = {	
+	sudo eclean --deep distfiles
+	sudo eclean --deep packages
 }
-
 RsyncOpt = -aAXHv
 
-DirsToBackup = /home /etc /boot /bin /root /usr 
+DirsToBackup = /boot /etc /home /root /usr/local
 
 DevicePath = /run/media/yan/HDD/

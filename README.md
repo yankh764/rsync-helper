@@ -37,6 +37,15 @@ by typing:
 It should execute and do all the cleaning process, create a backup directory  
 in storage device then it'll backup all your system there.  
 
+## Limitations
+This program has few limitations that are good to note:
+1. In the ```CleaningCommands``` section each command has a limited number of arguments;   
+the program name and 7 arguments (each command consists of maximum 8 words).
+2. Each line has 700 bytes (700 characters) limit and for a full configured section   
+there is limit for 1000 characters.
+3. Each program name in the ```CleaningCommands``` can consists of maximum 200 characters   
+and each one of its argument has a buffer for maximum 100 bytes.
+
 ## Latest Updates
 1. Simplified the syntax of the configuration file a little bit.
 2. Added a make file to simplify the compilation process.
@@ -44,3 +53,4 @@ in storage device then it'll backup all your system there.
 4. Improved program's security.
 5. Added the option to configure rsync command so you can backup whatever you wish.
 6. Edited the config_example so it will be up to date and relevant.
+7. Increased the number of arguments each program can take.

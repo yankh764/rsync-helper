@@ -9,19 +9,25 @@
 #include <dirent.h>
 #include <errno.h>
 #include "sys_backup.h"
+#include "str_man.h"
+
+#define BLANK  1 //To represent size of blank char
+#define WORD_LEN 100 //Maximum lenght of one word 
 
 /*
-*Recursive function to delete directories.
+*Recursive function to delete directories. If dir_removal_status = 1
+*Then it will delete the passed dir_path also, if 0 then it will keep it.
 *Returns -1 for failure, 1 if cant open dir, otherwise 0.
 */
-int rm_dir(const char *dir_path) {
+int rm_dir(const char *dir_path, unsigned int dir_removal_status) {
 	DIR *dr;
 	struct dirent *dp;
 	struct stat statbuf;
 	char *new_path;
-	size_t original_path_len, new_path_len;
+	size_t original_path_len, new_path_len; 
 
-	original_path_len = strlen(dir_path);
+    original_path_len = strlen(dir_path);
+	
 	if((dr=opendir(dir_path)) == NULL) { //If failed opening dir
 		if(errno==ENOENT) { //If dir doesnt exists
 			fprintf(stderr, "Directory doesn't exists: %s\n", dir_path);
@@ -41,7 +47,7 @@ int rm_dir(const char *dir_path) {
         new_path_len = original_path_len + strlen(dp->d_name) + 2; //2 = '\0' and '/'
         new_path = (char *) malloc(new_path_len);
         if(new_path == NULL) {
-        	if(closedir(dr)==-1)
+        	if(closedir(dr))
         		fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
         	fprintf(stderr, "An error occured while allocating memory\n");
         	return -1;
@@ -50,18 +56,19 @@ int rm_dir(const char *dir_path) {
         //Get object's status
         if(stat(new_path, &statbuf)==0) {
         	if(S_ISDIR(statbuf.st_mode)) { //If object is a directory 
-        		if(rm_dir(new_path)==-1) { //Delete it 
+              if(rm_dir(new_path, 1)) { //Delete it 
         			free(new_path);
-        			if(closedir(dr)==-1)
+        			if(closedir(dr))
         				fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
         			fprintf(stderr, "Error occured while removing directory: %s\n", new_path);
         			return -1;
         		}
         	}
+        	
         	else {
-        		if(unlink(new_path)==-1) { //Delte file
+        		if(unlink(new_path)) { //Delte file
         			free(new_path);
-        			if(closedir(dr)==-1)
+        			if(closedir(dr))
         				fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
         			fprintf(stderr, "Error occured while removing file: %s\n", new_path);
         			return -1;
@@ -71,17 +78,21 @@ int rm_dir(const char *dir_path) {
         }
         else {
         	free(new_path);
-        	if(closedir(dr)==-1)
+        	if(closedir(dr))
         		fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
         	fprintf(stderr, "An unknown error occured.\n");
         	return -1;
         }
     }
-    if(closedir(dr)==-1) {
+    if(closedir(dr)) {
         fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
         return -1;
     }
-    rmdir(dir_path);
+    if(dir_removal_status)
+      if(rmdir(dir_path)) {
+        fprintf(stderr, "Error occured while removing directory: %s\n", dir_path);
+        return -1;
+      }
     return 0;
 }
 
@@ -110,19 +121,19 @@ void get_date(date *date_struct) {
 char *make_backup_dir(const char *device_path, date date_struct) {
 	char dir_name[9];
 	char *backup_path; 
-	int backup_path_size = sizeof(dir_name)+strlen(device_path)+1;
+	size_t backup_path_len = sizeof(dir_name)+strlen(device_path)+1;
 
 	//Convert the date_array to a string so will use it to name the dir in the device path
 	snprintf(dir_name, sizeof(dir_name)+1, "%02d-%02d-%02d", date_struct.day, date_struct.month, date_struct.year);
 	//Prepare the full backup path 
-	backup_path = (char *) malloc(backup_path_size);
+	backup_path = (char *) malloc(backup_path_len);
 	if(backup_path == NULL) {
 		fprintf(stderr, "Error occured while allocating memory.\n");
 		return NULL;
 	}
-	snprintf(backup_path, backup_path_size+1, "%s%s/", device_path, dir_name); 
+	snprintf(backup_path, backup_path_len+1, "%s%s/", device_path, dir_name); 
 
-	if(mkdir(backup_path, S_IRWXU)==-1) { //If failed
+	if(mkdir(backup_path, S_IRWXU)) { //If failed
 		fprintf(stderr, "Error occured while creating directory: %s\n", backup_path);
 		free(backup_path); 
 		return NULL;
@@ -145,7 +156,7 @@ int exec_command(const char *prog_name, char *commands[]) {
 
 	snprintf(prog_path, sizeof(prog_path)+1, "/usr/bin/%s", prog_name);
 	pid = fork(); //Create a new child process
-	if(pid == -1) {//If failed to create new child
+	if(pid == -1) {//If failed to create child process
 		fprintf(stderr, "An error occured while creating a child process.\n");
 		return -1;
 	}
@@ -162,3 +173,54 @@ int exec_command(const char *prog_name, char *commands[]) {
 			return 1;
 	return 0; 
 } 
+
+/*
+ *This function is going to make all the necssary steps and preprocessings
+ *to prepare the messed up line of command and its args and pass it to 
+ *the command list so itll be executed. Return -1 for failure.
+ */
+int prepare_command(const char *messed_command, char **command_list, unsigned int max_size) {
+	char *prog_name;
+	unsigned int i, j;
+	size_t i_in_line;
+	char *arg; //Program's argumet
+
+	prog_name = (char *) malloc(WORD_LEN);
+	if(prog_name == NULL) { //Check allocation
+		fprintf(stderr, "An error occured while allocating memory.\n");
+		return -1;
+	}
+	if(get_name(messed_command, prog_name, WORD_LEN)) {
+		fprintf(stderr, "Error occured while preparing command.\n");
+		free(prog_name);
+		return -1;
+	}
+	command_list[0] = prog_name; 
+	
+	i_in_line = strlen(prog_name);
+	//Get all program's arguments (if there is of course)
+	for(i=1; i<max_size; i++) {
+		if(messed_command[i_in_line]=='\0')
+			break;
+		i_in_line+=BLANK; 
+		
+		arg = (char *) malloc(WORD_LEN);
+		if(arg == NULL) { //Check allocation
+			fprintf(stderr, "An error occured while allocating memory.\n");
+			for(j=i-1; j>-1; j--) //Free allocated addresses 
+				free(command_list[j]);	
+			return -1;
+		}
+		
+		if(get_name(messed_command+i_in_line, arg, WORD_LEN)==-1) {
+			for(j=i; j>-1; j--) //Free allocated addresses 
+				free(command_list[j]);
+			return -1;
+		}
+		command_list[i] = arg;
+		i_in_line += strlen(arg); //Skip checked characters
+	} 
+	return 0;
+}
+
+

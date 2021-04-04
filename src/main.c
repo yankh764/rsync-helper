@@ -8,15 +8,19 @@
 *your customaized cleaning process from a config file with the 
 *following path: ~/.config/sys_backup
 */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include "config_man.h" //For config files managment 
+#include "str_man.h" //for string and line manipulation 
 #include "sys_backup.h"
 
-#define BLANK 1 //To represent size of blank char
+#define MAX_ARGS 8 //Maximum number of arguments commands_list can take  
+#define MAX_LEN 700 //Maximum line lenght 
+#define BLANK  1 //To represent size of blank char
 
 int main(int argc, char *argv[]) {
 	const char *config_desc = {
@@ -32,7 +36,13 @@ int main(int argc, char *argv[]) {
 		"\0"
 	};
 	const char *units_desc[] = {
-		"Dirs path you regularly clean, like some cache dirs",
+        "{\n"
+        "\tDirs path you regularly clean, like some cache dirs\n"
+        "\tPlease be aware in case the path is something like this:\n"
+        "\t/path/to/dir\n"
+        "\tIt will delete the dir and its content, so if you want\n"
+        "\tto keep the dir just append a slash to the path.\n"
+        "}",
 		"{\n"
 		"\tCommands for cleaning your sysem, like:\n"
 		"\tsudo pacman -Sc (for deleting uninstalled packages\n"
@@ -45,13 +55,11 @@ int main(int argc, char *argv[]) {
 	};
 	const char *config_path = ".config/sys_backup";
 	const char *home = getenv("HOME");
-	char *sudo = "sudo";
 	char config_full_path[strlen(home)+strlen(config_path)+1];
 	char *configurations, *backup_path, *ptr;
-	char *command_arg, *commands_list[7], dir_to_backup[200];
-	char prog_name[200], new_prog_name[sizeof(prog_name)+strlen("/usr/bin/")];
+	char *command_list[MAX_ARGS], dir_to_backup[200];
 	int opt, status;
-	unsigned int i, len;
+	unsigned int i, len, dir_removal_status;
 	date backup_dir_name;
 
 	/*Prepare configurations file's full path*/
@@ -59,10 +67,10 @@ int main(int argc, char *argv[]) {
 
 	while((opt = getopt(argc, argv, ":c")) != EOF) {
 		if(opt == 'c' && argc<3) {
-			if(create_config_file(config_full_path, config_desc)==-1) 
+			if(create_config_file(config_full_path, config_desc)) 
 				exit(EXIT_FAILURE);
-			for(i=0; *units_list[i]!='\0'; i++)
-				if(write_config_unit(config_full_path, units_list[i], units_desc[i])==-1) 
+			for(i=0; units_list[i]!=NULL; i++)
+				if(write_config_unit(config_full_path, units_list[i], units_desc[i])) 
 					exit(EXIT_FAILURE);
 			printf("%s was succesfully generated.\n", config_full_path);
 			return 0;
@@ -77,7 +85,6 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	/*Read the configured units*/
 	//DirsToClean
 	if((configurations=read_config_unit(config_full_path, units_list[0])) == NULL) {
 		if(errno==ENOENT) { //If file doesnt exists
@@ -88,16 +95,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	//Separate each dir path on its own to delete it
-	while(1) {
-		ptr = split_configs(configurations);
-		if(ptr==NULL) {
-			if(errno==ENOMEM) { //If error is memory error (calloc error)
-				free(configurations);
-				exit(EXIT_FAILURE);
-			}
-			free(ptr);
-			break;
-		}
+	while((ptr=split_paragraph(configurations, MAX_LEN))!=NULL) {
 		if(*ptr=='/' && ptr[1]=='\0'){ //If path is stand alone root tree
 			fprintf(stderr, "Error: you can't remove root tree.\n");
 			fprintf(stderr, "Please make sure that there is no sign of stand alone '/' in your configs.\n");
@@ -106,8 +104,9 @@ int main(int argc, char *argv[]) {
 			exit(EXIT_FAILURE);
 		}
 
-		clean_line(ptr); //Clean the end of the line from white space chars 
-		if((status=rm_dir(ptr)) == -1) {
+        //If path ends with a slash remove its content only, otherwise remove it also.
+        dir_removal_status = (ptr[strlen(ptr)-1] == '/') ? 0 : 1;
+        if((status=rm_dir(ptr, dir_removal_status)) == -1) {
 			free(configurations);
 			free(ptr);
 			exit(EXIT_FAILURE);
@@ -116,91 +115,56 @@ int main(int argc, char *argv[]) {
 			;
 		else
 			printf("Removing: %s\n", ptr);
+
 		free(ptr);
 	}
+	if(errno==ENOMEM) { //If error is memory error (malloc error)
+		free(configurations);
+		exit(EXIT_FAILURE);
+	}
+	free(ptr);
 	free(configurations);
 
 	//CleaningCommands
 	if((configurations=read_config_unit(config_full_path, units_list[1])) == NULL) {
 		if(errno==ENOENT) { //If file doesnt exists
 			fprintf(stderr, "The configurations file doesn't exists.\n");
-			fprintf(stderr, "Reminder: you can always generate new one using the -c option.\n");	
+			fprintf(stderr, "Reminder: you can always generate new one using the -c option.\n");
 		}
 		exit(EXIT_FAILURE);
 	}
-	
+
 	/*Separate each cleaning command on its own to execute it*/
-	memset(commands_list, '\0', sizeof(commands_list)); //Make sure array is empty
-	while(1) {
-		ptr = split_configs(configurations);
-		if(ptr==NULL) {
-			if(errno==ENOMEM) { //If error is memory error (malloc error)
-				free(configurations);
-				exit(EXIT_FAILURE);
-			}
+	memset(command_list, '\0', sizeof(command_list)); //Make sure array is empty
+    while((ptr=split_paragraph(configurations, MAX_LEN))!=NULL) {
+		if(prepare_command(ptr, command_list, MAX_ARGS)) {
 			free(ptr);
-			break;
-		}
-		if(get_name(ptr, prog_name, sizeof(prog_name))==-1) { //If no program name was found
 			free(configurations);
-			free(ptr);
 			exit(EXIT_FAILURE);
 		}
-
-		/*Prepare the actual command*/
-		if(strcmp(prog_name, sudo) == 0) { //If command starts with sudo
-			if(ptr[strlen(sudo)+BLANK]=='\0') { //If sudo is the whole command 
-				fprintf(stderr, "Please append a command for the sudo in your configurations file.\n");
-				free(configurations);
-				free(ptr);
-				exit(EXIT_FAILURE);
-			}
-			get_name((ptr+strlen(sudo)+BLANK), prog_name, sizeof(prog_name)); //Get the name after sudo
-			snprintf(new_prog_name, sizeof(new_prog_name)+1, "/usr/bin/%s", prog_name); 
-			command_arg = (ptr+strlen(sudo)+BLANK) + (strlen(prog_name)+BLANK); //skip all the read characters
-			clean_line(command_arg);
-			commands_list[0] = sudo;
-			commands_list[1] = new_prog_name; //Insert it with the full path to avoid vulnerabilities
-			commands_list[2] = command_arg; 
-			printf("Warning: Executing the command '%s' with root privileges!\n", ptr);
-			status = exec_command(commands_list[0], commands_list);
-			if(status==-1) {
-				free(configurations);
-				free(ptr);
-				exit(EXIT_FAILURE);
-			}
-			if(status)
-				_Exit(127);
-		} 
-		else {
-			if(ptr[strlen(prog_name)+BLANK]=='\0') { //If program has no arguments
-				commands_list[0] = prog_name;
-				status = exec_command(commands_list[0], commands_list);
-				
-				if(status==-1) {
-					free(configurations);
-					free(ptr);
-					exit(EXIT_FAILURE);
-				}
-				if(status)
-					_Exit(127);
-			}
-
-			command_arg = ptr+strlen(prog_name)+BLANK; 
-			clean_line(command_arg);
-			commands_list[0] = prog_name;
-			commands_list[1] = command_arg;
-			status = exec_command(commands_list[0], commands_list);
-			if(status==-1) {
-				free(configurations);
-				free(ptr);
-				exit(EXIT_FAILURE);
-			}
-			if(status)
-				_Exit(127);
+		if(strcmp(command_list[0], "sudo")==0)
+			printf("\nWarning: Executing the command '%s' with root privileges!\n", ptr);
+		
+		status = exec_command(command_list[0], command_list);
+		if(status==-1) {
+			free(configurations);
+			free(ptr);
+			for(i=0; command_list[i]!=NULL; i++)
+				free(command_list[i]);
+			exit(EXIT_FAILURE);
 		}
+		else if(status)
+			_Exit(127);
+			
 		free(ptr);
+		for(i=0; command_list[i]!=NULL; i++)
+			free(command_list[i]);
 	}
+	if(errno==ENOMEM) { //If error is memory error (malloc error)
+		free(configurations);
+		exit(EXIT_FAILURE);
+	}
+	free(ptr);
 	free(configurations);
 
 	//DevicePath
@@ -213,6 +177,7 @@ int main(int argc, char *argv[]) {
 	}
 	
 	get_date(&backup_dir_name); //Get the date of today and pass it to dir_name
+	clean_line(configurations);
 	//Create backup dir and get its path
 	if((backup_path=make_backup_dir(configurations, backup_dir_name))==NULL) { 
 		free(configurations);
@@ -221,7 +186,7 @@ int main(int argc, char *argv[]) {
 	free(configurations);
 
 	/*Prepare Rsync commands*/
-	memset(commands_list, '\0', sizeof(commands_list)); //Make sure array is empty
+	memset(command_list, '\0', sizeof(command_list)); //Make sure array is empty
 	//RsyncOpt
 	if((configurations=read_config_unit(config_full_path, units_list[3])) == NULL) {
 		if(errno==ENOENT) { //If file doesnt exists
@@ -233,10 +198,10 @@ int main(int argc, char *argv[]) {
 	}
 	
 	clean_line(configurations);
-	commands_list[0] = sudo;
-	commands_list[1] = "/usr/bin/rsync";
-	commands_list[2] = configurations;
-	commands_list[4] = backup_path;
+	command_list[0] = "sudo";
+	command_list[1] = "rsync";
+	command_list[2] = configurations;
+	command_list[4] = backup_path;
 
 	//DirsToBackup
 	if((configurations=read_config_unit(config_full_path, units_list[4])) == NULL) {
@@ -244,30 +209,41 @@ int main(int argc, char *argv[]) {
 			fprintf(stderr, "The configurations file doesn't exists.\n");
 			fprintf(stderr, "Reminder: you can always generate new one using the -c option.\n");	
 		}
-		free(commands_list[2]);
-		free(commands_list[4]);
+		free(command_list[2]);
+		free(command_list[4]);
 		exit(EXIT_FAILURE);
 	}
 
 	//The actual Rsync command
 	len = 0;
-	while(get_name(configurations+len, dir_to_backup, sizeof(dir_to_backup))!=-1) { //Get dir name 
-		commands_list[3] = dir_to_backup;
+	while((status=get_name(configurations+len, dir_to_backup, sizeof(dir_to_backup)))!=1) { //Get dir name 
+		if(status) { //If failed to get name
+			free(command_list[2]);
+			free(command_list[4]);
+			free(configurations);
+			exit(EXIT_FAILURE);
+		}
+		command_list[3] = dir_to_backup;
 
-		status = exec_command(commands_list[0], commands_list);
+		status = exec_command(command_list[0], command_list);
 		if(status==-1) {
-			free(commands_list[2]);
-			free(commands_list[4]);
+			free(command_list[2]);
+			free(command_list[4]);
 			free(configurations);
 			exit(EXIT_FAILURE);
 		}
 		if(status)
 			_Exit(127);
-		len += strlen(dir_to_backup) + BLANK; //To ommit the already backed up dirs
-		break;
+			
+		len += strlen(dir_to_backup); //To ommit the already backed up dirs
+		if(configurations[len] == '\0') //If reached end of configurations
+			break;
+		len += BLANK; //Other wise skip BLANK and cheak next dir_to_backup
+		
+		memset(dir_to_backup, '\0', sizeof(dir_to_backup));
 	}
-	free(commands_list[2]);
-	free(commands_list[4]);
+	free(command_list[2]);
+	free(command_list[4]);
 	free(configurations);
 	return 0;
 }
