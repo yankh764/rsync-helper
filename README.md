@@ -5,7 +5,7 @@ this repo is for you.
 I just created rsync and few commad line tools helper and a wrraper program that can  
 do all the full system backup and cleaning process automatically and could save  
 you a lot of time.  
-This program will read configurations from ~/.config/sys_backup, so just make  
+This program will read configurations from ```~/.config/sys_backup```, so just make  
 sure to configure the file correctly and properly.
 
 ## Dependencies
