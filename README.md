@@ -25,7 +25,7 @@ You can install all these packages using your distribution's package manager.
 
 	```make```   
 	```sudo make install```   
-	```make clean```
+	```make clean``` (optional)
 
 4. Run the program using the -c option by typing in the terminal:    
 	```backup -c```  
