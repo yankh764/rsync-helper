@@ -44,7 +44,9 @@ the program name and 7 arguments (each command consists of maximum 8 words).
 2. Each line has 700 bytes (700 characters) limit and for a full configured section   
 there is limit for 1000 characters.
 3. Each program name in the ```CleaningCommands``` can consists of maximum 200 characters   
-and each one of its argument has a buffer for maximum 100 bytes.
+and each one of its argument has a buffer for maximum 100 bytes.   
+4. Since the program is most likely to be executed using a non-root user the ```DirsToClean```   
+section has a limitation of deleting only the directories that the user is permited to delete.
 
 ## Latest Updates
 1. Simplified the syntax of the configuration file a little bit.

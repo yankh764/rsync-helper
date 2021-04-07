@@ -111,11 +111,8 @@ int main(int argc, char *argv[]) {
 			free(ptr);
 			exit(EXIT_FAILURE);
 		}
-		else if(status) //If cant open dir skip it 
+		else if(status) //If dir doesnt exist 
 			;
-		else
-			printf("Removing: %s\n", ptr);
-
 		free(ptr);
 	}
 	if(errno==ENOMEM) { //If error is memory error (malloc error)

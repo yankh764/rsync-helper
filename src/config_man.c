@@ -117,6 +117,7 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 	char *read_configs; //Already read configs
 	char unit_to_check[NAME_LEN]; //Unit name to check 
 	unsigned int config_status = 0; //1 = list, 0 = one line configurations
+	unsigned int status;
 
 	fp = fopen(file_path, "r");
 	if(fp == NULL) { //Check if error occurred
@@ -144,11 +145,20 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 
 		//If the beginning of a line is commented or empty
 		if(*unit_buffer=='#' || *unit_buffer=='\n' || *unit_buffer=='\0') 
-			continue; //Ignore and read next line
+			continue;
 
 		if(config_status) { //If list was found
-			if(read_list_syntax(unit_buffer, read_configs))
+			status = read_list_syntax(unit_buffer, read_configs);
+			
+			if(status == 1)
 				continue; //read the next line of the list
+			else if(status == -1) { //If overflow detected
+				free(read_configs);
+				fprintf(stderr, "Please make sure that the unit '%s' is configured properly.\n", unit_name);
+				if(fclose(fp))
+					fprintf(stderr, "An error occured while closig: %s\n", file_path);
+				return NULL;
+			}
 			if(fclose(fp)) {
 				free(read_configs);
 				fprintf(stderr, "An error occurred while closing: %s\n", file_path);
@@ -162,13 +172,13 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 				continue;
 			//Get unit name from the buffer to compare it
 			if(get_name(unit_buffer, unit_to_check, sizeof(unit_to_check))) { 
-				free(read_configs);
 				if(fclose(fp))
 					fprintf(stderr, "An error occurred while closing: %s\n", file_path);
 				return NULL;
 			}
 			if(strcmp(unit_name, unit_to_check)) //If unit wasnt found in line read the next one
-				continue; 
+				continue;
+			
 			/*The address of the beginning of the unit's configurations =
 			beginning of the line + len of the unit name + 3 bytes (2 spaces and '=' sign)*/
 			configs_beginning = unit_buffer + strlen(unit_name) + 3;
@@ -176,16 +186,16 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 				config_status = 1;
 				continue;
 			}
-			//STILL NOT COMPLETED
-			/*else if(isspace(*configs_beginning)) { //If configurations are empty
-				free(read_configs);
-				if(fclose(fp))
-					fprintf(stderr, "An error occurred while closing: %s\n", file_path);
-				return NULL;
-			}*/
 			else {
-				read_reg_syntax(configs_beginning, read_configs);
+				status = read_reg_syntax(configs_beginning, read_configs);
 				
+				if(status) { //If overflow detected 
+					free(read_configs);
+					fprintf(stderr, "Please make sure that the unit '%s' is configured properly.\n", unit_name);
+					if(fclose(fp))
+						fprintf(stderr, "An error occured while closing: %s\n", file_path);
+					return NULL;
+				}
 				if(fclose(fp)) {
 					free(read_configs);
 					fprintf(stderr, "An error occurred while closing: %s\n", file_path);
@@ -204,23 +214,23 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 
 /*
 *This function reads the regular configurations syntax,
-*Then passes it to the config_buffer. If there was a buffer 
-*overflow the function will return -1, otherwise 0.
+*Then passes it to the config_buffer.
 */
 int read_reg_syntax(const char *config_beginning, char *configs_buffer) {
 	unsigned int i;
 
-	for(i=0; config_beginning[i]!='\0'; i++)
+	for(i=0; i<CONFIGS && config_beginning[i]!='\0'; i++)
 		switch(config_beginning[i]) {
 			case '\n':
-				configs_buffer[i] = '\0'; //teminate line
-				return 0; //exit
+				configs_buffer[i] = '\0';
+				return 0;
 			default:
 				//insert char into the configs_buffer
 				configs_buffer[i] = config_beginning[i];
 				break;
 			}
-	return 0;
+	fprintf(stderr, "Buffer overflow was detected!\n");
+	return -1;
 }
 
 /*
@@ -231,7 +241,7 @@ int read_list_syntax(const char *line_beginning, char *configs_buffer) {
 	unsigned int i;
 	size_t char_cnt = strlen(configs_buffer); //number of characters in configs_buffer
 
-	for(i=0; line_beginning[i]!='\0'; i++) //Loop and read line until reaching '\n' or ';'
+	for(i=0; char_cnt<CONFIGS; i++) //Read until reaching '\n' or ';'
 		switch(line_beginning[i]) {
 			case '}': //If end of list
 				configs_buffer[char_cnt] = '\0'; //terminate line
@@ -246,5 +256,14 @@ int read_list_syntax(const char *line_beginning, char *configs_buffer) {
 				char_cnt++;
 				break;
 		}
-	return 0; //Finished reading list
+	fprintf(stderr, "Buffer overflow was detected!\n");
+	return -1;
 }
+
+
+
+
+
+
+
+

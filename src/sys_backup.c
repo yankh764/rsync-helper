@@ -33,10 +33,11 @@ int rm_dir(const char *dir_path, unsigned int dir_removal_status) {
 			fprintf(stderr, "Directory doesn't exists: %s\n", dir_path);
 			return 1;
 		}
-		else {
+		else if(errno==EACCES)
+			fprintf(stderr, "Permission denied error occured while opening: %s\n", dir_path);
+		else
 			fprintf(stderr, "Error occured while opening directory: %s\n", dir_path);
-			return -1;
-		}
+		return -1;
 	}
 
 	//Loop in dir's content
@@ -48,51 +49,59 @@ int rm_dir(const char *dir_path, unsigned int dir_removal_status) {
         new_path = (char *) malloc(new_path_len);
         if(new_path == NULL) {
         	if(closedir(dr))
-        		fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
-        	fprintf(stderr, "An error occured while allocating memory\n");
+        		fprintf(stderr, "Error occured while closing directory: %s\n", dir_path);
+        	fprintf(stderr, "Error occured while allocating memory.\n");
         	return -1;
         }
-        snprintf(new_path, new_path_len+1, "%s/%s", dir_path, dp->d_name);
+		if(dir_removal_status)
+        	snprintf(new_path, new_path_len+1, "%s/%s", dir_path, dp->d_name);
+		else 
+			snprintf(new_path, new_path_len+1, "%s%s", dir_path, dp->d_name);
         //Get object's status
         if(stat(new_path, &statbuf)==0) {
         	if(S_ISDIR(statbuf.st_mode)) { //If object is a directory 
               if(rm_dir(new_path, 1)) { //Delete it 
-        			free(new_path);
         			if(closedir(dr))
-        				fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
-        			fprintf(stderr, "Error occured while removing directory: %s\n", new_path);
-        			return -1;
+        				fprintf(stderr, "Error occured while closing directory: %s\n", dir_path);
+        			free(new_path);
+					return -1;
         		}
         	}
-        	
         	else {
         		if(unlink(new_path)) { //Delte file
-        			free(new_path);
         			if(closedir(dr))
-        				fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
+        				fprintf(stderr, "Error occured while closing directory: %s\n", dir_path);
         			fprintf(stderr, "Error occured while removing file: %s\n", new_path);
-        			return -1;
+        			free(new_path);
+					return -1;
         		}
         	}
         	free(new_path);
         }
         else {
+        	if(errno==EACCES)
+				fprintf(stderr, "Permission denied error occured while searching for: %s\n", new_path);
+			else
+				fprintf(stderr, "An unknown error occured while searching for: %s\n", new_path);
+			if(closedir(dr))
+        		fprintf(stderr, "Error occured while closing directory: %s\n", dir_path);
         	free(new_path);
-        	if(closedir(dr))
-        		fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
-        	fprintf(stderr, "An unknown error occured.\n");
-        	return -1;
+			return -1;
         }
     }
     if(closedir(dr)) {
-        fprintf(stderr, "An error occured while closing directory: %s\n", dir_path);
+        fprintf(stderr, "Error occured while closing directory: %s\n", dir_path);
         return -1;
     }
-    if(dir_removal_status)
-      if(rmdir(dir_path)) {
-        fprintf(stderr, "Error occured while removing directory: %s\n", dir_path);
-        return -1;
-      }
+    if(dir_removal_status) {
+        if(rmdir(dir_path)) {
+          fprintf(stderr, "Error occured while removing directory: %s\n", dir_path);
+          return -1;
+        }
+	    printf("Removing: %s\n", dir_path);
+	}
+	else 
+		printf("Cleaning: %s\n", dir_path);
     return 0;
 }
 

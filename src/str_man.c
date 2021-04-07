@@ -22,7 +22,7 @@ int get_name(const char *line, char *name_buff, unsigned int buff_size) {
 		return -1;
 	}
 
-	else if(*line=='\0')
+	else if(*line=='\0') //If end of a word
 		return 1;
 
 	for(i=0; i<buff_size; i++) {
