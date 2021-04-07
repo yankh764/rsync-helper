@@ -35,7 +35,7 @@ Then make sure that the storage device is mounted, run the program one more time
 by typing:    
 	```backup```    
 It should execute and do all the cleaning process, create a backup directory  
-in storage device then it'll backup all your system there.  
+in storage device then it'll backup your system there.  
 
 ## Limitations
 This program has few limitations that are good to note:
