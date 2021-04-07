@@ -19,7 +19,7 @@ You can install all these packages using your distribution's package manager.
 1. Make sure all the dependencies are installed, if not install them.  
 2. Clone this repo by typing:  
 
-	```git clone https://github.com/yankh764/full-system-backup.git```
+	```git clone https://github.com/yankh764/rsync-helper.git```
 
 3. Move to the cloned directory and type:
 
