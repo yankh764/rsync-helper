@@ -1,7 +1,8 @@
 #ifndef CONFIG_MAN_H
 #define CONFIG_MAN_H
 
-int check_file_existence(const char *);
+//const char *file_path;
+
 int create_config_file(const char *, const char*);
 int write_config_unit(const char *, const char *, const char *);
 char *read_config_unit(const char *, const char *);

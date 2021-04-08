@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
 		"# This configuration file purposes are to provide the backup   #\n"
 		"# program the right cleaning process and storage device path,  #\n"
 		"# customized to your own needs and preferences.                #\n"
-		"################################################################"
+		"################################################################\n"
 	};
 	const char *units_list[] = {
 		"DirsToClean", "CleaningCommands", "DevicePath", 
@@ -36,13 +36,13 @@ int main(int argc, char *argv[]) {
 		"\0"
 	};
 	const char *units_desc[] = {
-        "{\n"
-        "\tDirs path you regularly clean, like some cache dirs\n"
-        "\tPlease be aware in case the path is something like this:\n"
-        "\t/path/to/dir\n"
-        "\tIt will delete the dir and its content, so if you want\n"
-        "\tto keep the dir just append a slash to the path.\n"
-        "}",
+		"{\n"
+		"\tDirs path you regularly clean, like some cache dirs\n"
+		"\tPlease be aware in case the path is something like this:\n"
+		"\t/path/to/dir\n"
+		"\tIt will delete the dir and its content, so if you want\n"
+		"\tto keep the dir just append a slash to the path.\n"
+		"}",
 		"{\n"
 		"\tCommands for cleaning your sysem, like:\n"
 		"\tsudo pacman -Sc (for deleting uninstalled packages\n"
@@ -50,8 +50,7 @@ int main(int argc, char *argv[]) {
 		"}", 
 		"Yous storage device's path",
 		"Rsync backup option, for example: -aAXHv",
-		"Directories to backup", 
-		"\0"
+		"Directories to backup", "\0"
 	};
 	const char *config_path = ".config/sys_backup";
 	const char *home = getenv("HOME");
@@ -85,7 +84,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	//DirsToClean
+	//DirsToClean (optional section)
 	if((configurations=read_config_unit(config_full_path, units_list[0])) == NULL) {
 		if(errno==ENOENT) { //If file doesnt exists
 			fprintf(stderr, "The configurations file doesn't exists.\n");
@@ -95,34 +94,38 @@ int main(int argc, char *argv[]) {
 	}
 
 	//Separate each dir path on its own to delete it
-	while((ptr=split_paragraph(configurations, MAX_LEN))!=NULL) {
-		if(*ptr=='/' && ptr[1]=='\0'){ //If path is stand alone root tree
-			fprintf(stderr, "Error: you can't remove root tree.\n");
-			fprintf(stderr, "Please make sure that there is no sign of stand alone '/' in your configs.\n");
-			free(configurations);
+	if(*configurations == '\0') //If configurations are empty
+		printf("Omitting '%s' section!\n", units_list[0]);
+	else {
+		while((ptr=split_paragraph(configurations, MAX_LEN))!=NULL) {
+			clean_line(ptr);
+			if(*ptr=='/' && ptr[1]=='\0'){ //If path is stand alone root tree
+				fprintf(stderr, "Error: you can't remove root tree.\n");
+				fprintf(stderr, "Please make sure that there is no sign of stand alone '/' in your configs.\n");
+				free(configurations);
+				free(ptr);
+				exit(EXIT_FAILURE);
+			}
+			//If path ends with a slash remove its content only, otherwise remove it also.
+        	dir_removal_status = (ptr[strlen(ptr)-1] == '/') ? 0 : 1;
+        	if((status=rm_dir(ptr, dir_removal_status)) == -1) {
+				free(configurations);
+				free(ptr);
+				exit(EXIT_FAILURE);
+			}
+			else if(status) //If dir doesnt exist 
+				;
 			free(ptr);
+		}
+		if(errno==ENOMEM) { //If error is memory error (malloc error)
+			free(configurations);
 			exit(EXIT_FAILURE);
 		}
-
-        //If path ends with a slash remove its content only, otherwise remove it also.
-        dir_removal_status = (ptr[strlen(ptr)-1] == '/') ? 0 : 1;
-        if((status=rm_dir(ptr, dir_removal_status)) == -1) {
-			free(configurations);
-			free(ptr);
-			exit(EXIT_FAILURE);
-		}
-		else if(status) //If dir doesnt exist 
-			;
 		free(ptr);
 	}
-	if(errno==ENOMEM) { //If error is memory error (malloc error)
-		free(configurations);
-		exit(EXIT_FAILURE);
-	}
-	free(ptr);
 	free(configurations);
 
-	//CleaningCommands
+	//CleaningCommands (optional section)
 	if((configurations=read_config_unit(config_full_path, units_list[1])) == NULL) {
 		if(errno==ENOENT) { //If file doesnt exists
 			fprintf(stderr, "The configurations file doesn't exists.\n");
@@ -130,41 +133,45 @@ int main(int argc, char *argv[]) {
 		}
 		exit(EXIT_FAILURE);
 	}
-
-	/*Separate each cleaning command on its own to execute it*/
-	memset(command_list, '\0', sizeof(command_list)); //Make sure array is empty
-    while((ptr=split_paragraph(configurations, MAX_LEN))!=NULL) {
-		if(prepare_command(ptr, command_list, MAX_ARGS)) {
-			free(ptr);
-			free(configurations);
-			exit(EXIT_FAILURE);
-		}
-		if(strcmp(command_list[0], "sudo")==0)
-			printf("\nWarning: Executing the command '%s' with root privileges!\n", ptr);
+	
+	if(*configurations=='\0')
+		printf("Omitting '%s' section!\n", units_list[1]);
+	else {
+		/*Separate each cleaning command on its own to excute it*/
+		memset(command_list, '\0', sizeof(command_list)); //Make sure array is empty
+    	while((ptr=split_paragraph(configurations, MAX_LEN))!=NULL) {
+			clean_line(ptr);
+			if(prepare_command(ptr, command_list, MAX_ARGS)) {
+				free(ptr);
+				free(configurations);
+				exit(EXIT_FAILURE);
+			}
+			if(strcmp(command_list[0], "sudo")==0)
+				printf("\nWarning: Executing the command '%s' with root privileges!\n", ptr);
 		
-		status = exec_command(command_list[0], command_list);
-		if(status==-1) {
-			free(configurations);
+			status = exec_command(command_list[0], command_list);
+			if(status==-1) {
+				free(configurations);
+				free(ptr);
+				for(i=0; command_list[i]!=NULL; i++)
+					free(command_list[i]);
+				exit(EXIT_FAILURE);
+			}
+			else if(status)
+				_Exit(127);	
 			free(ptr);
 			for(i=0; command_list[i]!=NULL; i++)
 				free(command_list[i]);
+		}	
+		if(errno==ENOMEM) { //If error is memory error (malloc error)
+			free(configurations);
 			exit(EXIT_FAILURE);
 		}
-		else if(status)
-			_Exit(127);
-			
 		free(ptr);
-		for(i=0; command_list[i]!=NULL; i++)
-			free(command_list[i]);
 	}
-	if(errno==ENOMEM) { //If error is memory error (malloc error)
-		free(configurations);
-		exit(EXIT_FAILURE);
-	}
-	free(ptr);
 	free(configurations);
 
-	//DevicePath
+	//DevicePath (requierd)
 	if((configurations=read_config_unit(config_full_path, units_list[2])) == NULL) {
 		if(errno==ENOENT) { //If file doesnt exists
 			fprintf(stderr, "The configurations file doesn't exists.\n");
@@ -172,9 +179,12 @@ int main(int argc, char *argv[]) {
 		}
 		exit(EXIT_FAILURE);
 	}
-	
+	if(*configurations == '\0') { //If configurations are empty 
+		free(configurations);
+		fprintf(stderr, "Error: The mandatory section '%s' is empty!\n", units_list[2]);
+		exit(EXIT_FAILURE);
+	}
 	get_date(&backup_dir_name); //Get the date of today and pass it to dir_name
-	clean_line(configurations);
 	//Create backup dir and get its path
 	if((backup_path=make_backup_dir(configurations, backup_dir_name))==NULL) { 
 		free(configurations);
@@ -184,7 +194,7 @@ int main(int argc, char *argv[]) {
 
 	/*Prepare Rsync commands*/
 	memset(command_list, '\0', sizeof(command_list)); //Make sure array is empty
-	//RsyncOpt
+	//RsyncOpt (required)
 	if((configurations=read_config_unit(config_full_path, units_list[3])) == NULL) {
 		if(errno==ENOENT) { //If file doesnt exists
 			fprintf(stderr, "The configurations file doesn't exists.\n");
@@ -194,13 +204,19 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	
+	if(*configurations == '\0') {
+		free(backup_path);
+		free(configurations);
+		fprintf(stderr, "Error: The mandatory section '%s' is empty!\n", units_list[3]);
+		exit(EXIT_FAILURE);
+	}
 	clean_line(configurations);
 	command_list[0] = "sudo";
 	command_list[1] = "rsync";
 	command_list[2] = configurations;
 	command_list[4] = backup_path;
 
-	//DirsToBackup
+	//DirsToBackup (required)
 	if((configurations=read_config_unit(config_full_path, units_list[4])) == NULL) {
 		if(errno==ENOENT) { //If file doesnt exists
 			fprintf(stderr, "The configurations file doesn't exists.\n");
@@ -210,7 +226,14 @@ int main(int argc, char *argv[]) {
 		free(command_list[4]);
 		exit(EXIT_FAILURE);
 	}
-
+	
+	if(*configurations == '\0') {
+		free(configurations);
+		free(command_list[2]);
+		free(command_list[4]);
+		fprintf(stderr, "Error: The mandatory section '%s' is empty!\n", units_list[4]);
+		exit(EXIT_FAILURE);
+	}
 	//The actual Rsync command
 	len = 0;
 	while((status=get_name(configurations+len, dir_to_backup, sizeof(dir_to_backup)))!=1) { //Get dir name 

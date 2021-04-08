@@ -127,7 +127,7 @@ void get_date(date *date_struct) {
 *date of today and create a backup dir in the passed path 
 *passed date. Then it will return the full path of the created dir. 
 */
-char *make_backup_dir(const char *device_path, date date_struct) {
+char *make_backup_dir(char *device_path, date date_struct) {
 	char dir_name[9];
 	char *backup_path; 
 	size_t backup_path_len = sizeof(dir_name)+strlen(device_path)+1;
@@ -140,6 +140,7 @@ char *make_backup_dir(const char *device_path, date date_struct) {
 		fprintf(stderr, "Error occured while allocating memory.\n");
 		return NULL;
 	}
+	clean_line(device_path);
 	snprintf(backup_path, backup_path_len+1, "%s%s/", device_path, dir_name); 
 
 	if(mkdir(backup_path, S_IRWXU)) { //If failed

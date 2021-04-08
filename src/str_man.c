@@ -39,11 +39,10 @@ int get_name(const char *line, char *name_buff, unsigned int buff_size) {
 *and modify it to avoid space sesitivity errors
 */
 void clean_line(char *line) {
-	size_t i;
-
-	for(i=strlen(line)-1; isspace(line[i]) && i>-1; i--)
-		;
-	line[++i] = '\0';
+	size_t i = strlen(line);
+	
+	for(i=i-1; (isspace(line[i]) && i>0); i--)
+		line[i] = '\0';
 }
 
 /*
@@ -61,7 +60,7 @@ char *split_paragraph(const char *paragraph, unsigned int max_size) {
 		return NULL;
 	}
 
-	line = malloc(max_size);
+	line = (char *) malloc(max_size);
 	if(line==NULL) {
 		fprintf(stderr, "An error occurred while allocating memory.\n");
 		return NULL;

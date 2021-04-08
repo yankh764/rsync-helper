@@ -13,6 +13,8 @@
 #define UNITS 701 //Size of unit_buffer
 #define NAME_LEN 200 //Maximum length of the unit name 
 
+//extern const char *file_path;
+
 /*
 *A function to create a configuration file with the given path.
 *Then it'll write a comentted discription and instruction for this file.
@@ -58,6 +60,7 @@ int create_config_file(const char *file_path, const char *description) {
 		"# as easy as I can and that's the result. I hope you like it :)#\n"
 		"################################################################\n"
 	};
+	//file_path = config_path; //file_path definition
 
 	fp = fopen(file_path, "w");
 	if(fp == NULL) { //Check if error occurred
@@ -65,7 +68,7 @@ int create_config_file(const char *file_path, const char *description) {
 		return -1;
 	}
 
-	fprintf(fp, "%s\n%s\n", description, config_instruct);
+	fprintf(fp, "%s%s\n", description, config_instruct);
 	if(ferror(fp)) {
 		fprintf(stderr, "An error occurred while creating: %s\n", file_path);
 		return -1;
@@ -116,7 +119,7 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 	char *configs_beginning; //Pointer to the targeted unit's configs beginning
 	char *read_configs; //Already read configs
 	char unit_to_check[NAME_LEN]; //Unit name to check 
-	unsigned int config_status = 0; //1 = list, 0 = one line configurations
+	unsigned int list = 0; //1 = list, 0 = one line configurations
 	unsigned int status;
 
 	fp = fopen(file_path, "r");
@@ -147,9 +150,8 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 		if(*unit_buffer=='#' || *unit_buffer=='\n' || *unit_buffer=='\0') 
 			continue;
 
-		if(config_status) { //If list was found
+		if(list) { //If list was found
 			status = read_list_syntax(unit_buffer, read_configs);
-			
 			if(status == 1)
 				continue; //read the next line of the list
 			else if(status == -1) { //If overflow detected
@@ -183,12 +185,19 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 			beginning of the line + len of the unit name + 3 bytes (2 spaces and '=' sign)*/
 			configs_beginning = unit_buffer + strlen(unit_name) + 3;
 			if(*configs_beginning == '{') { //If unit configs is beginning of a list
-				config_status = 1;
+				list = 1;
 				continue;
 			}
+			else if(isspace(*configs_beginning)) { //If configurations are empty 
+				if(fclose(fp)) {
+					free(read_configs);
+					fprintf(stderr, "An error occured while closing: %s\n", file_path);
+					return NULL;
+				}
+				return read_configs;
+			}	
 			else {
 				status = read_reg_syntax(configs_beginning, read_configs);
-				
 				if(status) { //If overflow detected 
 					free(read_configs);
 					fprintf(stderr, "Please make sure that the unit '%s' is configured properly.\n", unit_name);
@@ -259,11 +268,4 @@ int read_list_syntax(const char *line_beginning, char *configs_buffer) {
 	fprintf(stderr, "Buffer overflow was detected!\n");
 	return -1;
 }
-
-
-
-
-
-
-
 
