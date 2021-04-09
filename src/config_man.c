@@ -96,7 +96,6 @@ int write_config_unit(const char *file_path, const char *unit_name, const char *
 		}
 	}
 	fprintf(fp, "%s = %s\n\n", unit_name, unit_desc);
-	
 	if(ferror(fp)) {
 		fprintf(stderr, "An error occurred while writing to: %s\n", file_path);
 		return -1;

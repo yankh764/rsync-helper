@@ -30,8 +30,7 @@ int main(int argc, char *argv[]) {
 	};
 	const char *units_list[] = {
 		"DirsToClean", "CleaningCommands", "DevicePath", 
-		"RsyncOpt", "DirsToBackup", 
-		"\0"
+		"RsyncOpt", "DirsToBackup", NULL
 	};
 	const char *units_desc[] = {
 		"{\n"
@@ -48,7 +47,7 @@ int main(int argc, char *argv[]) {
 		"}", 
 		"Yous storage device's path",
 		"Rsync backup option, for example: -aAXHv",
-		"Directories to backup", "\0"
+		"Directories to backup", NULL
 	};
 	const char *config_path = ".config/sys_backup";
 	const char *home = getenv("HOME");
@@ -68,8 +67,8 @@ int main(int argc, char *argv[]) {
 				exit(EXIT_FAILURE);
 			for(i=0; units_list[i]!=NULL; i++) {
 				switch(i) {
-					case 1: case 2:
-						note = "#Optional section";
+					case 0: case 1:
+						note = "Optional section";
 						break;
 					default:
 						note = NULL;
