@@ -19,8 +19,6 @@
 #include "sys_backup.h"
 
 #define MAX_ARGS 8 //Maximum number of arguments commands_list can take  
-#define MAX_LEN 700 //Maximum line lenght 
-#define BLANK  1 //To represent size of blank char
 
 int main(int argc, char *argv[]) {
 	const char *config_desc = {
@@ -55,8 +53,8 @@ int main(int argc, char *argv[]) {
 	const char *config_path = ".config/sys_backup";
 	const char *home = getenv("HOME");
 	char config_full_path[strlen(home)+strlen(config_path)+1];
-	char *configurations, *backup_path, *ptr;
-	char *command_list[MAX_ARGS], dir_to_backup[200];
+	char *configurations, *backup_path, *ptr, *note;
+	char *command_list[MAX_ARGS], dir[200];
 	int opt, status;
 	unsigned int i, len, dir_removal_status;
 	date backup_dir_name;
@@ -68,9 +66,18 @@ int main(int argc, char *argv[]) {
 		if(opt == 'c' && argc<3) {
 			if(create_config_file(config_full_path, config_desc)) 
 				exit(EXIT_FAILURE);
-			for(i=0; units_list[i]!=NULL; i++)
-				if(write_config_unit(config_full_path, units_list[i], units_desc[i])) 
+			for(i=0; units_list[i]!=NULL; i++) {
+				switch(i) {
+					case 1: case 2:
+						note = "#Optional section";
+						break;
+					default:
+						note = NULL;
+						break;
+				}
+				if(write_config_unit(config_full_path, units_list[i], units_desc[i], note)) 
 					exit(EXIT_FAILURE);
+			}
 			printf("%s was succesfully generated.\n", config_full_path);
 			return 0;
 		}
@@ -83,22 +90,21 @@ int main(int argc, char *argv[]) {
 			exit(EXIT_FAILURE);
 		}
 	}
-
 	//DirsToClean (optional section)
 	if((configurations=read_config_unit(config_full_path, units_list[0])) == NULL) {
 		if(errno==ENOENT) { //If file doesnt exists
 			fprintf(stderr, "The configurations file doesn't exists.\n");
-			fprintf(stderr, "Reminder: you can always generate new one using the -c option.\n");	
+			fprintf(stderr, "\nReminder: you can always generate new one using the -c option.\n");	
 		}
 		exit(EXIT_FAILURE);
 	}
-
 	//Separate each dir path on its own to delete it
 	if(*configurations == '\0') //If configurations are empty
 		printf("Omitting '%s' section!\n", units_list[0]);
 	else {
-		while((ptr=split_paragraph(configurations, MAX_LEN))!=NULL) {
+		while((ptr=split_paragraph(configurations, UNITS))!=NULL) {
 			clean_line(ptr);
+	
 			if(*ptr=='/' && ptr[1]=='\0'){ //If path is stand alone root tree
 				fprintf(stderr, "Error: you can't remove root tree.\n");
 				fprintf(stderr, "Please make sure that there is no sign of stand alone '/' in your configs.\n");
@@ -108,7 +114,8 @@ int main(int argc, char *argv[]) {
 			}
 			//If path ends with a slash remove its content only, otherwise remove it also.
         	dir_removal_status = (ptr[strlen(ptr)-1] == '/') ? 0 : 1;
-        	if((status=rm_dir(ptr, dir_removal_status)) == -1) {
+        
+			if((status=rm_dir(ptr, dir_removal_status)) == -1) {
 				free(configurations);
 				free(ptr);
 				exit(EXIT_FAILURE);
@@ -133,14 +140,15 @@ int main(int argc, char *argv[]) {
 		}
 		exit(EXIT_FAILURE);
 	}
-	
 	if(*configurations=='\0')
 		printf("Omitting '%s' section!\n", units_list[1]);
 	else {
 		/*Separate each cleaning command on its own to excute it*/
 		memset(command_list, '\0', sizeof(command_list)); //Make sure array is empty
-    	while((ptr=split_paragraph(configurations, MAX_LEN))!=NULL) {
+    
+		while((ptr=split_paragraph(configurations, UNITS))!=NULL) {
 			clean_line(ptr);
+	
 			if(prepare_command(ptr, command_list, MAX_ARGS)) {
 				free(ptr);
 				free(configurations);
@@ -150,6 +158,7 @@ int main(int argc, char *argv[]) {
 				printf("\nWarning: Executing the command '%s' with root privileges!\n", ptr);
 		
 			status = exec_command(command_list[0], command_list);
+		
 			if(status==-1) {
 				free(configurations);
 				free(ptr);
@@ -159,6 +168,7 @@ int main(int argc, char *argv[]) {
 			}
 			else if(status)
 				_Exit(127);	
+	
 			free(ptr);
 			for(i=0; command_list[i]!=NULL; i++)
 				free(command_list[i]);
@@ -185,6 +195,7 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	get_date(&backup_dir_name); //Get the date of today and pass it to dir_name
+	
 	//Create backup dir and get its path
 	if((backup_path=make_backup_dir(configurations, backup_dir_name))==NULL) { 
 		free(configurations);
@@ -192,8 +203,8 @@ int main(int argc, char *argv[]) {
 	}
 	free(configurations);
 
-	/*Prepare Rsync commands*/
 	memset(command_list, '\0', sizeof(command_list)); //Make sure array is empty
+	
 	//RsyncOpt (required)
 	if((configurations=read_config_unit(config_full_path, units_list[3])) == NULL) {
 		if(errno==ENOENT) { //If file doesnt exists
@@ -210,6 +221,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Error: The mandatory section '%s' is empty!\n", units_list[3]);
 		exit(EXIT_FAILURE);
 	}
+
 	clean_line(configurations);
 	command_list[0] = "sudo";
 	command_list[1] = "rsync";
@@ -226,7 +238,6 @@ int main(int argc, char *argv[]) {
 		free(command_list[4]);
 		exit(EXIT_FAILURE);
 	}
-	
 	if(*configurations == '\0') {
 		free(configurations);
 		free(command_list[2]);
@@ -236,16 +247,17 @@ int main(int argc, char *argv[]) {
 	}
 	//The actual Rsync command
 	len = 0;
-	while((status=get_name(configurations+len, dir_to_backup, sizeof(dir_to_backup)))!=1) { //Get dir name 
+	while((status=get_name(configurations+len, dir, sizeof(dir)))!=1) { //Get dir name 
 		if(status) { //If failed to get name
 			free(command_list[2]);
 			free(command_list[4]);
 			free(configurations);
 			exit(EXIT_FAILURE);
 		}
-		command_list[3] = dir_to_backup;
+		command_list[3] = dir;
 
 		status = exec_command(command_list[0], command_list);
+	
 		if(status==-1) {
 			free(command_list[2]);
 			free(command_list[4]);
@@ -254,13 +266,10 @@ int main(int argc, char *argv[]) {
 		}
 		if(status)
 			_Exit(127);
-			
-		len += strlen(dir_to_backup); //To ommit the already backed up dirs
-		if(configurations[len] == '\0') //If reached end of configurations
-			break;
-		len += BLANK; //Other wise skip BLANK and cheak next dir_to_backup
 		
-		memset(dir_to_backup, '\0', sizeof(dir_to_backup));
+		len += strlen(dir); //To ommit the already backed up dirs
+		len += BLANK; //Other wise skip BLANK and cheak next dir
+		memset(dir, '\0', sizeof(dir));
 	}
 	free(command_list[2]);
 	free(command_list[4]);

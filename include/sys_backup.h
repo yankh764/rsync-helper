@@ -1,6 +1,9 @@
 #ifndef SYS_BACKUP_H
 #define SYS_BACKUP_H
 
+#define BLANK 1 //To represent a blank char 
+#define WORD_LEN 100 //Maximum word length
+
 typedef struct {
 	int day;
 	int month;

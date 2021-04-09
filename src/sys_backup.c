@@ -11,9 +11,6 @@
 #include "sys_backup.h"
 #include "str_man.h"
 
-#define BLANK  1 //To represent size of blank char
-#define WORD_LEN 100 //Maximum lenght of one word 
-
 /*
 *Recursive function to delete directories. If dir_removal_status = 1
 *Then it will delete the passed dir_path also, if 0 then it will keep it.
@@ -39,15 +36,16 @@ int rm_dir(const char *dir_path, unsigned int dir_removal_status) {
 			fprintf(stderr, "Error occured while opening directory: %s\n", dir_path);
 		return -1;
 	}
-
 	//Loop in dir's content
 	while((dp=readdir(dr))!=NULL) {
 		//Ignore '.' and '..' directories
 		if (strcmp(dp->d_name, ".")==0 || strcmp(dp->d_name, "..")==0)
             continue;
-        new_path_len = original_path_len + strlen(dp->d_name) + 2; //2 = '\0' and '/'
+        
+		new_path_len = original_path_len + strlen(dp->d_name) + 2; //2 = '\0' and '/'
         new_path = (char *) malloc(new_path_len);
-        if(new_path == NULL) {
+    
+		if(new_path == NULL) {
         	if(closedir(dr))
         		fprintf(stderr, "Error occured while closing directory: %s\n", dir_path);
         	fprintf(stderr, "Error occured while allocating memory.\n");
@@ -140,6 +138,7 @@ char *make_backup_dir(char *device_path, date date_struct) {
 		fprintf(stderr, "Error occured while allocating memory.\n");
 		return NULL;
 	}
+	
 	clean_line(device_path);
 	snprintf(backup_path, backup_path_len+1, "%s%s/", device_path, dir_name); 
 
@@ -209,19 +208,19 @@ int prepare_command(const char *messed_command, char **command_list, unsigned in
 	
 	i_in_line = strlen(prog_name);
 	//Get all program's arguments (if there is of course)
-	for(i=1; i<max_size; i++) {
+	for(i=1; i<max_size-1; i++) {
 		if(messed_command[i_in_line]=='\0')
 			break;
-		i_in_line+=BLANK; 
 		
+		i_in_line+=BLANK; 
 		arg = (char *) malloc(WORD_LEN);
+		
 		if(arg == NULL) { //Check allocation
 			fprintf(stderr, "An error occured while allocating memory.\n");
 			for(j=i-1; j>-1; j--) //Free allocated addresses 
 				free(command_list[j]);	
 			return -1;
 		}
-		
 		if(get_name(messed_command+i_in_line, arg, WORD_LEN)==-1) {
 			for(j=i; j>-1; j--) //Free allocated addresses 
 				free(command_list[j]);
@@ -230,6 +229,7 @@ int prepare_command(const char *messed_command, char **command_list, unsigned in
 		command_list[i] = arg;
 		i_in_line += strlen(arg); //Skip checked characters
 	} 
+	command_list[i] = NULL;
 	return 0;
 }
 

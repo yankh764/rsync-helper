@@ -21,10 +21,8 @@ int get_name(const char *line, char *name_buff, unsigned int buff_size) {
 		fprintf(stderr, "The line starts with a white character: %s\n", line);
 		return -1;
 	}
-
 	else if(*line=='\0') //If end of a word
 		return 1;
-
 	for(i=0; i<buff_size; i++) {
 		if(isspace(line[i]) || line[i]=='\0')
 			break;
@@ -59,13 +57,12 @@ char *split_paragraph(const char *paragraph, unsigned int max_size) {
 		i_in_par = 0; //Reinitialize static variable to 0 so itll be usable next call
 		return NULL;
 	}
-
 	line = (char *) malloc(max_size);
+	
 	if(line==NULL) {
 		fprintf(stderr, "An error occurred while allocating memory.\n");
 		return NULL;
 	}
-
 	for(i=0; paragraph[i_in_par]!='\n'; i++, i_in_par++) {
 		if(paragraph[i_in_par] == '\0') {
 			line[i] = '\0';
@@ -75,6 +72,5 @@ char *split_paragraph(const char *paragraph, unsigned int max_size) {
 	}
 	line[i] = '\0';
 	i_in_par++;
-	
 	return line;
 }
