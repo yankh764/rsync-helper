@@ -23,7 +23,7 @@ int rm_dir(const char *dir_path, unsigned int dir_removal_status) {
 	char *new_path;
 	size_t original_path_len, new_path_len; 
 
-    original_path_len = strlen(dir_path);
+	original_path_len = strlen(dir_path);
 		
 	if((dr=opendir(dir_path)) == NULL) { //If failed opening dir
 		if(errno==ENOENT) { //If dir doesnt exists

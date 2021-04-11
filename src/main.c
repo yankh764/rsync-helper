@@ -246,7 +246,7 @@ int main(int argc, char *argv[]) {
 	}
 	//The actual Rsync command
 	len = 0;
-	while((status=get_name(configurations+len, dir, sizeof(dir)))!=1) { //Get dir name 
+	while((status=get_name(configurations+len, dir, sizeof(dir))) != 1) { //Get dir name 
 		if(status) { //If failed to get name
 			free(command_list[2]);
 			free(command_list[4]);
@@ -268,6 +268,10 @@ int main(int argc, char *argv[]) {
 		
 		len += strlen(dir); //To ommit the already backed up dirs
 		len += BLANK; //Other wise skip BLANK and cheak next dir
+		
+		if(*(configurations+len)==' ') //If there is a mistaken white char 
+			break;
+
 		memset(dir, '\0', sizeof(dir));
 	}
 	free(command_list[2]);
