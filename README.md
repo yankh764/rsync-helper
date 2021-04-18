@@ -70,6 +70,9 @@ section and prepending ```sudo``` to it.
 6. The ```Commands``` section has another limitation. You can't use in it any connector operator   
 such as ```&```, ```|``` and all redirection operators.
 
+## Contributing
+Pull requests are welcomed and appreciated guys.
+
 ## Latest Updates
 1. Simplified the syntax of the configuration file a little bit.
 2. Added a make file to simplify the compilation process.
