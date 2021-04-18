@@ -30,7 +30,7 @@ Now the program should be installed to ```/usr/local/bin```
 
 4. Run the program using the -c option (to generate config file) by typing in the terminal:    
 	```backup -c```  
-It'll create a configuration file in the ```~/.config``` with the name ```sys_backup```.
+It'll create a configuration file in the ```~/.config``` with the name ```sys_backup```.   
 Configure it to your needs and prefrences -all instructions are written there-.  
 Then make sure that the storage device is mounted, run the program one more time   
 by typing:    
