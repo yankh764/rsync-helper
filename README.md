@@ -35,8 +35,8 @@ Configure it to your needs and prefrences -all instructions are written there-.
 Then make sure that the storage device is mounted, run the program one more time   
 by typing:    
 	```backup```    
-It should execute and do all the cleaning process, create a backup directory  
-in storage device then it'll backup your system there.  
+It should execute and do all the cleaning process, create a backup directory in storage device  
+then it'll backup your system there.  
 
 ## Tips and Tricks
 There are some tips and tricks to the program I want to share that completed    
