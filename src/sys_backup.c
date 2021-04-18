@@ -153,34 +153,60 @@ char *make_backup_dir(char *device_path, date date_struct) {
 
 /*
 *This function will fork the parent process to create a
-*child process then execute commands using one of the exec
-*familie's functions. Return -1 for fork failure, 1 for execv() 
-*failure, otherwise 0.
+*child process then execute commands using execv().
+*Return -1 for failure, otherwise 0.
 */
-int exec_command(const char *prog_name, char *commands[]) {
-	char prog_path[strlen("/usr/bin/")+strlen(prog_name)];
+int exec_command(const char *prog_name, char *full_command[]) {
+	char *prog_path;
+	char path[strlen(getenv("PATH"))];
+	unsigned int i, prog_path_size, saved_i, path_len;
 	int status;
 	pid_t pid;
 	pid_t ret;
 
-	snprintf(prog_path, sizeof(prog_path)+1, "/usr/bin/%s", prog_name);
+	strcpy(path, getenv("PATH"));
+
 	pid = fork(); //Create a new child process
 	if(pid == -1) {//If failed to create child process
-		fprintf(stderr, "An error occured while creating a child process.\n");
+		fprintf(stderr, "Error occured while creating a child process.\n");
 		return -1;
 	}
-	else if(pid != 0) { //If child process didnt start
+	else if(pid != 0) //If child process didnt start
 		while((ret = waitpid(pid, &status, 0)) == -1) { //Wait for child
 			if(errno != EINTR) { //If the waitpid() error isnt an interrupte signal
-				fprintf(stderr, "An error occured while waiting for the child process.\n");
+				fprintf(stderr, "Error occured while waiting for the child process.\n");
 				return -1;
 			}
 		}
+	else {
+		for(i=0, saved_i=0, path_len=0; path[i]!='\0'; i++, path_len++) {
+			if(path[i] == ':') {
+				prog_path_size = path_len + strlen(prog_name) + 1;
+				prog_path = (char *) malloc(prog_path_size);
+				if(prog_path==NULL) {
+					fprintf(stderr, "Error occured while allocating memory.\n");
+					return -1;
+				}
+				path[i] = '\0';
+				
+				snprintf(prog_path, prog_path_size+1, "%s/%s", (path+saved_i), prog_name);
+
+				status = execv(prog_path, full_command);
+				if(status==-1 && errno==ENOENT) {
+					free(prog_path);
+					saved_i = i + 1;
+					path_len = 0;
+					continue; //Search in the next path
+				} 
+				break;
+			}
+		}
 	}
-	else 
-		if(execv(prog_path, commands)==-1) //If command wasnt found
-			return 1;
-	return 0; 
+	if(status) {
+		fprintf(stderr, "Error occured while executing the following program: %s\n", full_command[0]);
+		return -1; 
+	}
+	return 0;
 } 
 
 /*
@@ -189,17 +215,18 @@ int exec_command(const char *prog_name, char *commands[]) {
  *the command list so itll be executed. Return -1 for failure.
  */
 int prepare_command(const char *messed_command, char **command_list, unsigned int max_size) {
+	const unsigned int word_len = 150;
 	char *prog_name;
 	unsigned int i, j;
 	size_t i_in_line;
 	char *arg; //Program's argumet
 
-	prog_name = (char *) malloc(WORD_LEN);
+	prog_name = (char *) malloc(word_len);
 	if(prog_name == NULL) { //Check allocation
 		fprintf(stderr, "An error occured while allocating memory.\n");
 		return -1;
 	}
-	if(get_name(messed_command, prog_name, WORD_LEN)) {
+	if(get_name(messed_command, prog_name, word_len)) {
 		fprintf(stderr, "Error occured while preparing command.\n");
 		free(prog_name);
 		return -1;
@@ -213,7 +240,7 @@ int prepare_command(const char *messed_command, char **command_list, unsigned in
 			break;
 		
 		i_in_line+=BLANK; 
-		arg = (char *) malloc(WORD_LEN);
+		arg = (char *) malloc(word_len);
 		
 		if(arg == NULL) { //Check allocation
 			fprintf(stderr, "An error occured while allocating memory.\n");
@@ -221,7 +248,7 @@ int prepare_command(const char *messed_command, char **command_list, unsigned in
 				free(command_list[j]);	
 			return -1;
 		}
-		if(get_name(messed_command+i_in_line, arg, WORD_LEN)==-1) {
+		if(get_name(messed_command+i_in_line, arg, word_len)==-1) {
 			for(j=i; j>-1; j--) //Free allocated addresses 
 				free(command_list[j]);
 			return -1;
@@ -232,5 +259,3 @@ int prepare_command(const char *messed_command, char **command_list, unsigned in
 	command_list[i] = NULL;
 	return 0;
 }
-
-

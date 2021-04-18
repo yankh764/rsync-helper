@@ -1,6 +1,7 @@
 /*
 *This source file contains all required functions to manage configuration files.
 */ 
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -118,7 +119,7 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 	char buffer[UNITS]; //Buffer for the each lines 
 	char *configs_beginning; //Pointer to the targeted unit's configs beginning
 	char *configs; //Already read configs
-	char unit_to_check[NAME_LEN]; //Unit name to check 
+	char unit_to_check[200]; //Unit name to check 
 	unsigned int list = 0; //1 = list, 0 = one line configurations
 	unsigned int status;
 

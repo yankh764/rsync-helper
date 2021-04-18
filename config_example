@@ -1,7 +1,7 @@
 ################################################################
-# This configuration file purposes are to provide to the       #
-# sys_backup.c program the right cleaning process and storage  #
-# device path, customized to your own needs and preferences.   #
+# This configuration file purposes are to provide the backup   #
+# program the right cleaning process and storage device path,  #
+# customized to your own needs and preferences.                #
 ################################################################
 ################################################################
 #--------------------------------------------------------------#
@@ -36,27 +36,30 @@
 #                                                              #
 # CommandsUnit = sudo root_command                             #
 #                                                              #
+# If a unit is optional you can leave it empty and the program #
+# will skip it.                                                #
 # Lastly as you can see hashes ('#') are ignored.              #
 # By the way, sorry for the hard syntax I really tried to make #
 # as easy as I can and that's the result. I hope you like it :)#
 ################################################################
 
+#Optional section
 DirsToClean = {
-	/home/yan/.cache/spotify
-	/home/yan/.cache/mozilla/firefox/kxb7pztg.default-release-4/thumbnails
-	/home/yan/.cache/tracker3
-	/home/yan/.cache/mozilla/firefox/kxb7pztg.default-release-4/cache2
-	/home/yan/.cache/zoom
-	/home/yan/.cache/torbrowser/download/
-	/home/yan/.cache/yarn
+	/home/yan/.cache/mozilla/firefox/w4ezgfe0.default-esr/cache2/
+	/home/yan/.cache/mozilla/firefox/fpwtx1lk.default-release/cache2/
+	/home/yan/.cache/thumbnails/normal/
 }
 
-CleaningCommands = {	
+#Optional section
+Commands = {
 	sudo eclean --deep distfiles
-	sudo eclean --deep packages
+	sudo clean_dirs
+	generate_world
 }
+
+DevicePath = /run/media/yan/HDD/
+
 RsyncOpt = -aAXHv
 
 DirsToBackup = /boot /etc /home /root /usr/local
 
-DevicePath = /run/media/yan/HDD/

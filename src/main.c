@@ -1,12 +1,6 @@
 /*
-*This program will make some cleaning that you regularly do 
-*before the full system backup. And then itll create new dir 
-*in your storage device with date, to make the system backup in
-*it useng rsync. The program will use system() to connect all the
-*command line tools together and automate this process. Lastly 
-*its good to note that tho program reads all the commands and 
-*your customaized cleaning process from a config file with the 
-*following path: ~/.config/sys_backup
+*Rsync helper and a time saver. This program will automate
+*the backup process for you and some of the housekeeping.
 */
 
 #include <stdio.h>
@@ -18,9 +12,8 @@
 #include "str_man.h" //for string and line manipulation 
 #include "sys_backup.h"
 
-#define MAX_ARGS 8 //Maximum number of arguments commands_list can take  
-
 int main(int argc, char *argv[]) {
+	const unsigned int max_args = 8; //Maximum number of arguments commands_list can take
 	const char *config_desc = {
 		"################################################################\n"
 		"# This configuration file purposes are to provide the backup   #\n"
@@ -29,7 +22,7 @@ int main(int argc, char *argv[]) {
 		"################################################################\n"
 	};
 	const char *units_list[] = {
-		"DirsToClean", "CleaningCommands", "DevicePath", 
+		"DirsToClean", "Commands", "DevicePath", 
 		"RsyncOpt", "DirsToBackup", NULL
 	};
 	const char *units_desc[] = {
@@ -41,11 +34,10 @@ int main(int argc, char *argv[]) {
 		"\tto keep the dir just append a slash to the path.\n"
 		"}",
 		"{\n"
-		"\tCommands for cleaning your sysem, like:\n"
-		"\tsudo pacman -Sc (for deleting uninstalled packages\n"
-		"\tfrom the cache in arch based distros)\n"
+		"\tCommands that you usually execute before system backup.\n"
+		"\tFor example cleaning commands or generating packages list.\n"
 		"}", 
-		"Yous storage device's path",
+		"Your storage device's path",
 		"Rsync backup option, for example: -aAXHv",
 		"Directories to backup", NULL
 	};
@@ -53,10 +45,15 @@ int main(int argc, char *argv[]) {
 	const char *home = getenv("HOME");
 	char config_full_path[strlen(home)+strlen(config_path)+1];
 	char *configurations, *backup_path, *ptr, *note;
-	char *command_list[MAX_ARGS], dir[200];
-	int opt, status;
+	char *command_list[max_args], dir[200];
+	int opt, status, c;
 	unsigned int i, len, dir_removal_status;
 	date backup_dir_name;
+
+	if(getuid()==0) { //If user is a root or using root priviliges
+		fprintf(stderr, "Error: Running the program with root privileges is forbidden for security concerns.\n");
+		exit(EXIT_FAILURE);
+	}
 
 	/*Prepare configurations file's full path*/
 	snprintf(config_full_path, sizeof(config_full_path)+1, "%s/%s", home, config_path);
@@ -131,7 +128,7 @@ int main(int argc, char *argv[]) {
 	}
 	free(configurations);
 
-	//CleaningCommands (optional section)
+	//Commands (optional section)
 	if((configurations=read_config_unit(config_full_path, units_list[1])) == NULL) {
 		if(errno==ENOENT) { //If file doesnt exists
 			fprintf(stderr, "The configurations file doesn't exists.\n");
@@ -148,25 +145,44 @@ int main(int argc, char *argv[]) {
 		while((ptr=split_paragraph(configurations, UNITS))!=NULL) {
 			clean_line(ptr);
 	
-			if(prepare_command(ptr, command_list, MAX_ARGS)) {
+			if(prepare_command(ptr, command_list, max_args)) {
 				free(ptr);
 				free(configurations);
 				exit(EXIT_FAILURE);
 			}
-			if(strcmp(command_list[0], "sudo")==0)
-				printf("\nWarning: Executing the command '%s' with root privileges!\n", ptr);
-		
+			if(strcmp(command_list[0], "sudo")==0) {
+				printf("\nDo you want to execute the command '%s' with root privileges (y/n): ", ptr);
+				
+				while((c=getchar()) != EOF) {
+					getchar(); //Eat newline 
+					if(c=='y')
+						goto Execute;
+					else if(c=='n') {
+						printf("Ommiting the command '%s'.\n\n", ptr);
+						free(ptr);
+						for(i=0; command_list[i]!=NULL; i++)
+							free(command_list[i]);
+						break;
+					}
+					else {
+						printf("Please answer with y or n!\n");
+						printf("\nDo you want to execute the command '%s' with root privileges (y/n): ", ptr);
+						continue;
+					}
+				}
+				continue;
+			}
+			Execute: ;
+
 			status = exec_command(command_list[0], command_list);
-		
-			if(status==-1) {
+
+			if(status) {
 				free(configurations);
 				free(ptr);
 				for(i=0; command_list[i]!=NULL; i++)
 					free(command_list[i]);
 				exit(EXIT_FAILURE);
-			}
-			else if(status)
-				_Exit(127);	
+			}	
 	
 			free(ptr);
 			for(i=0; command_list[i]!=NULL; i++)
@@ -257,17 +273,15 @@ int main(int argc, char *argv[]) {
 
 		status = exec_command(command_list[0], command_list);
 	
-		if(status==-1) {
+		if(status) {
 			free(command_list[2]);
 			free(command_list[4]);
 			free(configurations);
 			exit(EXIT_FAILURE);
 		}
-		if(status)
-			_Exit(127);
 		
 		len += strlen(dir); //To ommit the already backed up dirs
-		len += BLANK; //Other wise skip BLANK and cheak next dir
+		len += BLANK; //Other wise skip BLANK and check next dir
 		
 		if(*(configurations+len)==' ') //If there is a mistaken white char 
 			break;
