@@ -48,7 +48,7 @@ to the ```Commands``` section with ```sudo``` prepended. For example:
 ```
 #!/bin/bash    
 	    
-rm -rf /path/to/dir/belongs/to/root     
+rm -rf /path/to/dir/that/belongs/to/root     
 ```
 
 Now make it executable by typing: ```sudo chmod +x /usr/local/bin/file_name```.      
