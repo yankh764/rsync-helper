@@ -51,8 +51,9 @@ to the ```Commands``` section with ```sudo``` prepended. For example:
 	rm -rf /var/tmp/portage/*    
 	rm -rf /var/cache/edb/*
 
-Now make it executable by typing: 
-	```sudo chmod +x /usrlocal/bin/clean_dirs```
+Now make it executable by typing:   
+	```sudo chmod +x /usrlocal/bin/clean_dirs```     
+Lastly add it to the ```Commands``` section with ```sudo``` prepended.
 
 ## Limitations
 This program has few limitations that are good to note:
