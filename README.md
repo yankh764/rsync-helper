@@ -46,11 +46,11 @@ it's good to note and remind you that you can always create a bash script in
 ```/usr/local/bin``` that deletes those dirs, make it executable then adding it    
 to the ```Commands``` section with ```sudo``` prepended. For example:
 #### clean_dirs  
-	``` #!/bin/bash    
+	#!/bin/bash    
 	    
 	rm -rf /var/tmp/portage/*    
-	rm -rf /var/cache/edb/*```
-	      
+	rm -rf /var/cache/edb/*
+
 Now make it executable by typing: 
 	```sudo chmod +x /usrlocal/bin/clean_dirs```
 
