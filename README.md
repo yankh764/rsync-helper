@@ -26,7 +26,7 @@ You can install all these packages using your distribution's package manager.
 	```make```   
 	```make install``` (with root privileges)   
 	```make clean``` (optional)   
-Now the program would be installed to ```/usr/local/bin```
+Now the program sould be installed to ```/usr/local/bin```
 
 4. Run the program using the -c option (to generate config file) by typing in the terminal:    
 	```backup -c```  
