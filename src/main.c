@@ -176,17 +176,14 @@ int main(int argc, char *argv[]) {
 
 			status = exec_command(command_list[0], command_list);
 
-			if(status) {
-				free(configurations);
-				free(ptr);
-				for(i=0; command_list[i]!=NULL; i++)
-					free(command_list[i]);
-				exit(EXIT_FAILURE);
-			}	
-	
 			free(ptr);
 			for(i=0; command_list[i]!=NULL; i++)
 				free(command_list[i]);
+
+			if(status) {
+				free(configurations);
+				exit(EXIT_FAILURE);
+			}	
 		}	
 		if(errno==ENOMEM) { //If error is memory error (malloc error)
 			free(configurations);

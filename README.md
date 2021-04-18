@@ -43,7 +43,7 @@ There are some tips and tricks to the program I want to share that completed
 the program for me and made it to overcome few of the limitations:
 1. Since ```DirsToClean``` can't delete directories that belongs to the root    
 it's good to note and remind you that you can always create a bash script in    
-```/usr/local/bin``` that deletes those dirs, make it executable then adding it    
+```/usr/local/bin``` that deletes those directories, make it executable then adding it    
 to the ```Commands``` section with ```sudo``` prepended. For example:  
 ```
 #!/bin/bash    
