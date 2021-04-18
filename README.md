@@ -52,9 +52,8 @@ rm -rf /var/tmp/portage/*
 rm -rf /var/cache/edb/*
 ```
 
-Now make it executable by typing:   
-	```sudo chmod +x /usr/local/bin/file_name```     
-Lastly add it to the ```Commands``` section with ```sudo``` prepended to it.   
+Now make it executable by typing: ```sudo chmod +x /usr/local/bin/file_name```     
+Lastly add ```file_name``` to the ```Commands``` section with ```sudo``` prepended to it.   
 
 ## Limitations
 This program has few limitations that are good to note:
