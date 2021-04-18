@@ -45,10 +45,12 @@ the program for me and made it to overcome few of the limitations:
 it's good to note and remind you that you can always create a bash script in    
 ```/usr/local/bin``` that deletes those dirs, make it executable then adding it    
 to the ```Commands``` section with ```sudo``` prepended. For example:  
-	```#!/bin/bash    
+	```
+	#!/bin/bash    
 	    
 	rm -rf /var/tmp/portage/*     
-	rm -rf /var/cache/edb/*```
+	rm -rf /var/cache/edb/*
+	```
 
 Now make it executable by typing:   
 	```sudo chmod +x /usr/local/bin/file_name```     
