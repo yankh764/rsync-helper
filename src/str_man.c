@@ -63,7 +63,7 @@ char *split_paragraph(const char *paragraph, unsigned int max_size) {
 		fprintf(stderr, "An error occurred while allocating memory.\n");
 		return NULL;
 	}
-	for(i=0; paragraph[i_in_par]!='\n'; i++, i_in_par++) {
+	for(i=0; paragraph[i_in_par]!='\n' && i<max_size; i++, i_in_par++) {
 		if(paragraph[i_in_par] == '\0') {
 			line[i] = '\0';
 			return line;

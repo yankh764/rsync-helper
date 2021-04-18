@@ -54,7 +54,7 @@ DirsToClean = {
 Commands = {
 	sudo eclean --deep distfiles
 	sudo clean_dirs
-	generate_world
+	cp /var/lib/portage/world /home/yan/.cache/world_list.txt
 }
 
 DevicePath = /run/media/yan/HDD/

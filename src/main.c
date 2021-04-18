@@ -155,8 +155,9 @@ int main(int argc, char *argv[]) {
 				
 				while((c=getchar()) != EOF) {
 					getchar(); //Eat newline 
+					
 					if(c=='y')
-						goto Execute;
+						goto execute;
 					else if(c=='n') {
 						printf("Ommiting the command '%s'.\n\n", ptr);
 						free(ptr);
@@ -172,7 +173,7 @@ int main(int argc, char *argv[]) {
 				}
 				continue;
 			}
-			Execute: ;
+			execute: ;
 
 			status = exec_command(command_list[0], command_list);
 

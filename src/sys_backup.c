@@ -140,7 +140,11 @@ char *make_backup_dir(char *device_path, date date_struct) {
 	}
 	
 	clean_line(device_path);
-	snprintf(backup_path, backup_path_len+1, "%s%s/", device_path, dir_name); 
+
+	if(backup_path[strlen(backup_path)-1]!='/')
+		snprintf(backup_path, backup_path_len+1, "%s%s/", device_path, dir_name);
+	else
+		snprintf(backup_path, backup_path_len+1, "%s%s", device_path, dir_name); 
 
 	if(mkdir(backup_path, S_IRWXU)) { //If failed
 		fprintf(stderr, "Error occured while creating directory: %s\n", backup_path);
