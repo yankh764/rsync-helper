@@ -9,7 +9,7 @@ SDIR ?= ./src
 SRCS := $(shell find $(SDIR) -iname "*.c")
 OBJS := $(SRCS:%=$(ODIR)/%.o)
 
-CFLAGS = -Wall -g -I$(IDIR)
+CFLAGS = -Wall -I$(IDIR)
 
 $(ODIR)/$(TARGET_EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
