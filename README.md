@@ -25,7 +25,8 @@ You can install all these packages using your distribution's package manager.
 
 	```make```   
 	```make install``` (with root privileges)   
-	```make clean``` (optional)   
+	```make clean``` (optional)    
+
 Now the program should be installed to ```/usr/local/bin```
 
 ## Usage
@@ -40,8 +41,8 @@ It should execute and do all the cleaning process, create a backup directory in 
 then it'll backup your system there.  
 
 ## Deleting The Program
-To uninstall the program just move to it's cloned directory and type:
-	```make uninstall``` (with root privileges)
+To uninstall the program just move to it's cloned directory and type:   
+	```make uninstall``` (with root privileges)   
 Then you can delete it's configurations file ```~/.config/sys_backup```.  
 
 ## Tips and Tricks
