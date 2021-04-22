@@ -42,7 +42,8 @@ then it'll backup your system there.
 
 ## Program's Deletion
 To uninstall the program just move to it's cloned directory and type:   
-	```make uninstall``` (with root privileges)   
+    ```make uninstall``` (with root privileges)   
+      
 Then you can delete it's configurations file ```~/.config/sys_backup```.  
 
 ## Tips and Tricks
