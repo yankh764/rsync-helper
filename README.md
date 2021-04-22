@@ -40,7 +40,7 @@ by typing:
 It should execute and do all the cleaning process, create a backup directory in storage device  
 then it'll backup your system there.  
 
-## Deleting The Program
+## Program's Deletion
 To uninstall the program just move to it's cloned directory and type:   
 	```make uninstall``` (with root privileges)   
 Then you can delete it's configurations file ```~/.config/sys_backup```.  
