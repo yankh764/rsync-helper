@@ -263,3 +263,17 @@ int prepare_command(const char *messed_command, char **command_list, unsigned in
 	command_list[i] = NULL;
 	return 0;
 }
+
+/*
+*Print help message.
+*/
+void help(const char *program_name) {
+	const char *help_message =
+		"Available options:                                        \n"
+		"  -h              Print this help message                 \n"
+		"  -c              Generate new configurations file        \n"
+	;
+
+	printf("Usage: %s <option>\n\n", program_name);
+	printf("%s", help_message);
+}

@@ -14,5 +14,6 @@ void get_date(date *);
 char *make_backup_dir(char *, date);
 int exec_command(const char *, char **);
 int prepare_command(const char *, char **, unsigned int);
+void help(const char *);
 
 #endif

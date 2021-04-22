@@ -54,38 +54,42 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Error: Running the program with root privileges is forbidden for security concerns.\n");
 		exit(EXIT_FAILURE);
 	}
+	if(argc > 2) {
+		fprintf(stderr, "Too many arguments were given.\n");
+		exit(EXIT_FAILURE);
+	}
 
 	/*Prepare configurations file's full path*/
 	snprintf(config_full_path, sizeof(config_full_path)+1, "%s/%s", home, config_path);
 
-	while((opt = getopt(argc, argv, ":c")) != EOF) {
-		if(opt == 'c' && argc<3) {
-			if(create_config_file(config_full_path, config_desc)) 
-				exit(EXIT_FAILURE);
-			for(i=0; units_list[i]!=NULL; i++) {
-				switch(i) {
-					case 0: case 1:
-						note = "Optional section";
-						break;
-					default:
-						note = NULL;
-						break;
-				}
+	while((opt = getopt(argc, argv, ":ch")) != EOF) {
+		switch(opt) {
+			case 'c':
+				if(create_config_file(config_full_path, config_desc)) 
+					exit(EXIT_FAILURE);
+				for(i=0; units_list[i]!=NULL; i++) {
+					switch(i) {
+						case 0: case 1:
+							note = "Optional section";
+							break;
+						default:
+							note = NULL;
+							break;
+					}
 				if(write_config_unit(config_full_path, units_list[i], units_desc[i], note)) 
 					exit(EXIT_FAILURE);
-			}
-			printf("%s was succesfully generated.\n", config_full_path);
-			return 0;
-		}
-		else if(argc > 3) {
-			fprintf(stderr, "Too many arguments were given.\n");
-			exit(EXIT_FAILURE);
-		}
-		else {
-			fprintf(stderr, "The argument %s is invalid.\n", argv[1]);
-			exit(EXIT_FAILURE);
-		}
+				}
+				printf("%s was succesfully generated.\n", config_full_path);
+				return 0;
+			case 'h':
+				help(argv[0]);
+				return 0;
+			default:
+				fprintf(stderr, "The argument %s is invalid.\n", argv[1]);
+				exit(EXIT_FAILURE);
+		}		
 	}
+	
 	//DirsToClean (optional section)
 	if((configurations=read_config_unit(config_full_path, units_list[0])) == NULL) {
 		if(errno==ENOENT) { //If file doesnt exists

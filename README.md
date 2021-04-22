@@ -15,7 +15,7 @@ sure to configure the file correctly and properly.
      
 You can install all these packages using your distribution's package manager.  
 
-## Usage
+## Installation 
 1. Make sure all the dependencies are installed, if not install them.  
 2. Clone this repo by typing:  
 
@@ -28,7 +28,8 @@ You can install all these packages using your distribution's package manager.
 	```make clean``` (optional)   
 Now the program should be installed to ```/usr/local/bin```
 
-4. Run the program using the -c option (to generate config file) by typing in the terminal:    
+## Usage
+Run the program using the -c option (to generate config file) by typing in the terminal:    
 	```backup -c```  
 It'll create a configuration file in the ```~/.config``` with the name ```sys_backup```.   
 Configure it to your needs and prefrences -all instructions are written there-.  
@@ -37,6 +38,11 @@ by typing:
 	```backup```    
 It should execute and do all the cleaning process, create a backup directory in storage device  
 then it'll backup your system there.  
+
+## Deleting The Program
+To uninstall the program just move to it's cloned directory and type:
+	```make uninstall``` (with root privileges)
+Then you can delete it's configurations file ```~/.config/sys_backup```.  
 
 ## Tips and Tricks
 There are some tips and tricks to the program I want to share that completed    
