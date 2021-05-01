@@ -12,6 +12,20 @@
 #include "str_man.h"
 
 /*
+*A function to make directory for the configurations file.
+*/
+int make_config_dir(const char *dir_path) {
+	if(mkdir(dir_path, 0755)) {
+		if(errno==EACCES)
+			fprintf(stderr, "Permission denied error occured while creating directory: %s\n", dir_path);
+		else
+			fprintf(stderr, "Error occured while creating directory: %s\n", dir_path);
+		return -1;
+	}
+	return 0;
+}
+
+/*
 *Recursive function to delete directories. If dir_removal_status = 1
 *Then it will delete the passed dir_path also, if 0 then it will keep it.
 *Returns -1 for failure, 1 if cant open dir, otherwise 0.

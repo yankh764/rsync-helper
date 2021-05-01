@@ -9,6 +9,7 @@ typedef struct {
 	int year;
 } date;
 
+int make_config_dir(const char *);
 int rm_dir(const char *, unsigned int);
 void get_date(date *);
 char *make_backup_dir(char *, date);

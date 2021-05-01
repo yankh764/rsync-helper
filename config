@@ -1,0 +1,66 @@
+################################################################
+# This configuration file purposes are to provide the backup   #
+# program the right cleaning process and storage device path,  #
+# customized to your own needs and preferences.                #
+################################################################
+################################################################
+#--------------------------------------------------------------#
+#                        [Instructions]                        #
+#--------------------------------------------------------------#
+################################################################
+# Please it's very important to make sure there are 3 charact- #
+# ers between the unit name and its configurations.            #
+# For example:                                                 #
+#                                                              #
+# UnitName = configurations                                    #
+#                                                              #
+# As you can see there are 3 characters between the unit name  #
+# and the configurations (2 spaces and an equal sign). Be awa- #
+# re that each new line terminates the unit's configurations.  #
+# If the unit's configurations are too long you can put it in- #
+# side a pair of braces and make it a list. For example:       #
+#                                                              #
+# VeryLongUnit = {                                             #
+#    config_1                                                  #
+#    config_2                                                  #
+#    config_3                                                  #
+#    config_4                                                  #
+# }  <- Don't forget to close the list                         #
+#                                                              #
+# Be aware that '}' terminates the list.                       #
+# Note: Please if you want to use indention for the list, only #
+# use tabs, becuase they are ignored while reading a list.     #
+# It's also good to note that in case the unit is a commands   #
+# unit and this command requires root privileges, you can just #
+# prepend 'sudo' to it like this:                              #
+#                                                              #
+# CommandsUnit = sudo root_command                             #
+#                                                              #
+# If a unit is optional you can leave it empty and the program #
+# will skip it.                                                #
+# Lastly as you can see hashes ('#') are ignored.              #
+# By the way, sorry for the hard syntax I really tried to make #
+# as easy as I can and that's the result. I hope you like it :)#
+################################################################
+
+#Optional section
+DirsToClean = {
+	Dirs path you regularly clean, like some cache dirs
+	Please be aware in case the path is something like this:
+	/path/to/dir
+	It will delete the dir and its content, so if you want
+	to keep the dir just append a slash to the path.
+}
+
+#Optional section
+Commands = {
+	Commands that you usually execute before system backup.
+	For example cleaning commands or generating packages list.
+}
+
+DevicePath = Your storage device's path
+
+RsyncOpt = Rsync backup option, for example: -aAXHv
+
+DirsToBackup = Directories to backup
+

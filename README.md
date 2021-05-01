@@ -5,13 +5,13 @@ this repo is for you.
 I just created rsync and few commad line tools helper and a wrraper program that can  
 do all the full system backup and cleaning process automatically and could save  
 you a lot of time.  
-This program will read configurations from ```~/.config/sys_backup```, so just make  
+This program will read configurations from ```/usr/local/etc/backup/config```, so just make  
 sure to configure the file correctly and properly.
 
 ## Dependencies
 1. rsync (Backup program).  
 2. gcc (C compiler).   
-3. git (to clone this repo).
+3. git (To clone this repo).
      
 You can install all these packages using your distribution's package manager.  
 
@@ -29,22 +29,19 @@ You can install all these packages using your distribution's package manager.
 
 Now the program should be installed to ```/usr/local/bin```
 
-## Usage
-Run the program using the -c option (to generate config file) by typing in the terminal:    
-	```backup -c```  
-It'll create a configuration file in the ```~/.config``` with the name ```sys_backup```.   
-Configure it to your needs and prefrences -all instructions are written there-.  
+## Usage   
+Configure ```/usr/local/etc/backup/config``` to your needs and prefrences -all instructions are written there-.  
 Then make sure that the storage device is mounted, run the program one more time   
 by typing:    
 	```backup```    
 It should execute and do all the cleaning process, create a backup directory in storage device  
 then it'll backup your system there.  
+Type ```backup -h``` for more information. 
 
 ## Program's Deletion
 To uninstall the program just move to it's cloned directory and type:   
-    ```make uninstall``` (with root privileges)   
-      
-Then you can delete it's configurations file ```~/.config/sys_backup```.  
+    ```make uninstall``` (with root privileges)     
+Now the program and it's configurations file are deleted.
 
 ## Tips and Tricks
 There are some tips and tricks to the program I want to share that completed    
@@ -70,10 +67,7 @@ there is limit for 1000 characters.
 3. Each program name in the ```Commands``` can consists of maximum 200 characters   
 and each one of its argument has a buffer for maximum 150 bytes.   
 4. Since the program is going to be executed using a non-root user the ```DirsToClean```   
-section has a limitation of deleting only the directories that the user is permited to delete.    
-5. The program can't be executed with root privileges for security concerns. But you can always    
-execute any command with root privileges using this program by adding it to the ```Commands```    
-section and prepending ```sudo``` to it.     
+section has a limitation of deleting only the directories that the user is permited to delete.         
 6. The ```Commands``` section has another limitation. You can't use in it any connector operator   
 such as ```&```, ```|``` and all redirection operators.
 
@@ -88,3 +82,5 @@ Pull requests are welcomed and appreciated guys.
 5. Added the option to configure rsync command so you can backup whatever you wish.
 6. Edited the config_example so it will be up to date and relevant.
 7. Increased the number of arguments each program can take.
+8. Changed configurations file location.
+9. Running program as a root is now permited.

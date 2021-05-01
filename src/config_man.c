@@ -61,16 +61,21 @@ int create_config_file(const char *file_path, const char *description) {
 	fp = fopen(file_path, "w");
 	
 	if(fp == NULL) { //Check if error occurred
-		fprintf(stderr, "An error occurred while creating: %s\n", file_path);
+		if(errno==EACCES)
+			fprintf(stderr, "Permission denied error occured while creating: %s\n", file_path);
+		else
+			fprintf(stderr, "Error occurred while creating: %s\n", file_path);
 		return -1;
 	}
+	
 	fprintf(fp, "%s%s\n", description, config_instruct);
+	
 	if(ferror(fp)) {
-		fprintf(stderr, "An error occurred while writing to: %s\n", file_path);
+		fprintf(stderr, "Error occurred while writing to: %s\n", file_path);
 		return -1;
 	}
 	if(fclose(fp)) {
-		fprintf(stderr, "An error occurred while closing: %s\n", file_path);
+		fprintf(stderr, "Error occurred while closing: %s\n", file_path);
 		return -1;
 	}
 	return 0;
@@ -80,29 +85,30 @@ int create_config_file(const char *file_path, const char *description) {
 *This function takes a unit name and a description then it'll 
 *write the description to it so youll know how to configure it.
 */
-int write_config_unit(const char *file_path, const char *unit_name, const char *unit_desc, const char *special_note) {
+int write_config_unit(const char *file_path, const char *unit_name, 
+		const char *unit_desc, const char *special_note) {
 	FILE *fp;
 
 	fp = fopen(file_path, "a");
 
 	if(fp == NULL) {//Check if error occurred
-		fprintf(stderr, "An error occurred while opening: %s\n", file_path);
+		fprintf(stderr, "Error occurred while opening: %s\n", file_path);
 		return -1;
 	}
 	if(special_note != NULL) {
 		fprintf(fp, "#%s\n", special_note);
 		if(ferror(fp)) {
-			fprintf(stderr, "An error occured while writing to: %s\n", file_path);
+			fprintf(stderr, "Error occured while writing to: %s\n", file_path);
 			return -1;
 		}
 	}
 	fprintf(fp, "%s = %s\n\n", unit_name, unit_desc);
 	if(ferror(fp)) {
-		fprintf(stderr, "An error occurred while writing to: %s\n", file_path);
+		fprintf(stderr, "Error occurred while writing to: %s\n", file_path);
 		return -1;
 	}
 	if(fclose(fp)) {
-		fprintf(stderr, "An error occurred while closing: %s\n", file_path);
+		fprintf(stderr, "Error occurred while closing: %s\n", file_path);
 		return -1;
 	}
 	return 0;	
@@ -116,7 +122,7 @@ int write_config_unit(const char *file_path, const char *unit_name, const char *
 */
 char *read_config_unit(const char *file_path, const char *unit_name) {
 	FILE *fp;
-	char buffer[UNITS]; //Buffer for the each lines 
+	char buffer[UNITS_SIZE]; //Buffer for the each lines 
 	char *configs_beginning; //Pointer to the targeted unit's configs beginning
 	char *configs; //Already read configs
 	char unit_to_check[200]; //Unit name to check 
@@ -126,25 +132,25 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 	fp = fopen(file_path, "r");
 	
 	if(fp == NULL) { //Check if error occurred
-		fprintf(stderr, "An error occured while opening file: %s\n", file_path);
+		fprintf(stderr, "Error occured while opening file: %s\n", file_path);
 		return NULL;
 	}
-	configs = (char *) calloc(CONFIGS, sizeof(char));
+	configs = (char *) calloc(CONFIGS_SIZE, sizeof(char));
 	
 	if(configs==NULL) {
-		fprintf(stderr, "An error occurred while allocating memory.\n");
+		fprintf(stderr, "Error occurred while allocating memory.\n");
 		if(fclose(fp))
-			fprintf(stderr, "An error occurred while closing: %s\n", file_path);
+			fprintf(stderr, "Error occurred while closing: %s\n", file_path);
 		return NULL;
 	}
 
 	//Loop in the file's content 
 	while(fgets(buffer, sizeof(buffer), fp) != NULL) { 
 		if(ferror(fp)) {
-			fprintf(stderr, "An error occurred while reading: %s\n", file_path);
+			fprintf(stderr, "Error occurred while reading: %s\n", file_path);
 			free(configs);
 			if(fclose(fp))
-				fprintf(stderr, "An error occurred while closing: %s\n", file_path);
+				fprintf(stderr, "Error occurred while closing: %s\n", file_path);
 			return NULL;
 		}
 		//If the beginning of a line is commented or empty
@@ -159,12 +165,12 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 				free(configs);
 				fprintf(stderr, "Please make sure that the unit '%s' is  configured properly.\n", unit_name);
 				if(fclose(fp))
-					fprintf(stderr, "An error occured while closing: %s\n", file_path);
+					fprintf(stderr, "Error occured while closing: %s\n", file_path);
 				return NULL;
 			}
 			if(fclose(fp)) {
 				free(configs);
-				fprintf(stderr, "An error occurred while closing: %s\n", file_path);
+				fprintf(stderr, "Error occurred while closing: %s\n", file_path);
 				return NULL;
 			}
 			return configs;
@@ -174,8 +180,9 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 				continue;
 			//Get unit name from the buffer to compare it
 			if(get_name(buffer, unit_to_check, sizeof(unit_to_check))) { 
+				free(configs);
 				if(fclose(fp))
-					fprintf(stderr, "An error occurred while closing: %s\n", file_path);
+					fprintf(stderr, "Error occurred while closing: %s\n", file_path);
 				return NULL;
 			}
 			if(strcmp(unit_name, unit_to_check)) //If unit wasnt found in line read the next one
@@ -191,17 +198,23 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 			else if(isspace(*configs_beginning)) { //If configurations are empty 
 				if(fclose(fp)) {
 					free(configs);
-					fprintf(stderr, "An error occured while closing: %s\n", file_path);
+					fprintf(stderr, "Error occured while closing: %s\n", file_path);
 					return NULL;
 				}
 				return configs;
 			}	
 			else {
-				read_reg_syntax(configs_beginning, configs);
+				if(read_reg_syntax(configs_beginning, configs)) {
+					free(configs);
+					fprintf(stderr, "Please make sure that the unit '%s' is  configured properly.\n", unit_name);
+					if(fclose(fp))
+						fprintf(stderr, "Error occured while closing: %s\n", file_path);
+					return NULL;
+				}
 			
 				if(fclose(fp)) {
 					free(configs);
-					fprintf(stderr, "An error occurred while closing: %s\n", file_path);
+					fprintf(stderr, "Error occurred while closing: %s\n", file_path);
 					return NULL;
 				}
 				return configs;
@@ -210,7 +223,7 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 	}
 	free(configs);
 	if(fclose(fp))
-		fprintf(stderr, "An error occurred while closing: %s\n", file_path);
+		fprintf(stderr, "Error occurred while closing: %s\n", file_path);
 	fprintf(stderr, "Error occured while searching for unit: %s.\n", unit_name);
 	return NULL;
 }
@@ -222,17 +235,20 @@ char *read_config_unit(const char *file_path, const char *unit_name) {
 int read_reg_syntax(const char *config_beginning, char *configs_buffer) {
 	unsigned int i;
 
-	for(i=0; i<CONFIGS && config_beginning[i]!='\0'; i++)
+	for(i=0; i<CONFIGS_SIZE; i++)
 		switch(config_beginning[i]) {
 			case '\n':
 				configs_buffer[i] = '\0';
+				return 0;
+			case '\0': 
 				return 0;
 			default:
 				//insert char into the configs_buffer
 				configs_buffer[i] = config_beginning[i];
 				break;
 			}
-	return 0;
+	fprintf(stderr, "Buffer overflow was detected!\n");
+	return -1;
 }
 
 /*
@@ -243,7 +259,7 @@ int read_list_syntax(const char *line_beginning, char *configs_buffer) {
 	unsigned int i;
 	size_t char_cnt = strlen(configs_buffer); //number of characters in configs_buffer
 
-	for(i=0; char_cnt<CONFIGS; i++) //Read until reaching '\n' or ';'
+	for(i=0; char_cnt<CONFIGS_SIZE; i++) //Read until reaching '\n' or ';'
 		switch(line_beginning[i]) {
 			case '}': //If end of list
 				configs_buffer[char_cnt] = '\0'; //terminate line

@@ -6,6 +6,8 @@ IDIR ?= include/
 ODIR ?= ./build
 SDIR ?= ./src
 PDIR ?= /usr/local/bin
+CDIR ?= /usr/local/etc/backup/
+CFILE ?= ./config
 
 SRCS := $(shell find $(SDIR) -iname "*.c")
 OBJS := $(SRCS:%=$(ODIR)/%.o)
@@ -23,8 +25,11 @@ clean:
 	$(RM) -r $(ODIR)
 
 install:
+	mkdir -p $(CDIR)
+	cp $(CFILE) $(CDIR)
 	install $(ODIR)/$(TARGET_EXEC) $(PDIR)/$(TARGET_EXEC)
 
 uninstall:
 	$(RM) -r $(ODIR)
+	$(RM) -r $(CDIR)
 	$(RM) $(PDIR)/$(TARGET_EXEC)

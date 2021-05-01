@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <errno.h>
 #include "config_man.h" //For config files managment 
 #include "str_man.h" //for string and line manipulation 
@@ -41,30 +42,43 @@ int main(int argc, char *argv[]) {
 		"Rsync backup option, for example: -aAXHv",
 		"Directories to backup", NULL
 	};
-	const char *config_path = ".config/sys_backup";
-	const char *home = getenv("HOME");
-	char config_full_path[strlen(home)+strlen(config_path)+1];
+	const char *config_dir_path = "/usr/local/etc/backup";
+	const char *config_file_name = "config";
+	char config_full_path[strlen(config_dir_path)+strlen(config_file_name)+1];
 	char *configurations, *backup_path, *ptr, *note;
 	char *command_list[max_args], dir[200];
-	int opt, status, c;
+	int opt, status;
 	unsigned int i, len, dir_removal_status;
+	DIR *dr;
 	date backup_dir_name;
 
-	if(getuid()==0) { //If user is a root or using root priviliges
-		fprintf(stderr, "Error: Running the program with root privileges is forbidden for security concerns.\n");
-		exit(EXIT_FAILURE);
-	}
 	if(argc > 2) {
 		fprintf(stderr, "Too many arguments were given.\n");
 		exit(EXIT_FAILURE);
 	}
 
 	/*Prepare configurations file's full path*/
-	snprintf(config_full_path, sizeof(config_full_path)+1, "%s/%s", home, config_path);
+	snprintf(config_full_path, sizeof(config_full_path)+1, "%s/%s", config_dir_path, config_file_name);
 
 	while((opt = getopt(argc, argv, ":ch")) != EOF) {
 		switch(opt) {
 			case 'c':
+				//Try open config_dir_path to check if it already exists
+				if((dr=opendir(config_dir_path)) == NULL) {
+					if(errno==ENOENT) {
+						if(make_config_dir(config_dir_path))
+							exit(EXIT_FAILURE);
+					}
+					else {
+						fprintf(stderr, "Error occured while openinng: %s\n", config_dir_path);
+						exit(EXIT_FAILURE);
+					}
+				}
+				else 
+					if(closedir(dr)) {
+						fprintf(stderr, "Error occured while closing: %s\n", config_dir_path);
+						exit(EXIT_FAILURE);
+					}
 				if(create_config_file(config_full_path, config_desc)) 
 					exit(EXIT_FAILURE);
 				for(i=0; units_list[i]!=NULL; i++) {
@@ -102,7 +116,7 @@ int main(int argc, char *argv[]) {
 	if(*configurations == '\0') //If configurations are empty
 		printf("Omitting '%s' section!\n", units_list[0]);
 	else {
-		while((ptr=split_paragraph(configurations, UNITS))!=NULL) {
+		while((ptr=split_paragraph(configurations, UNITS_SIZE))!=NULL) {
 			clean_line(ptr);
 	
 			if(*ptr=='/' && ptr[1]=='\0'){ //If path is stand alone root tree
@@ -146,7 +160,7 @@ int main(int argc, char *argv[]) {
 		/*Separate each cleaning command on its own to excute it*/
 		memset(command_list, '\0', sizeof(command_list)); //Make sure array is empty
     
-		while((ptr=split_paragraph(configurations, UNITS))!=NULL) {
+		while((ptr=split_paragraph(configurations, UNITS_SIZE))!=NULL) {
 			clean_line(ptr);
 	
 			if(prepare_command(ptr, command_list, max_args)) {
@@ -154,30 +168,8 @@ int main(int argc, char *argv[]) {
 				free(configurations);
 				exit(EXIT_FAILURE);
 			}
-			if(strcmp(command_list[0], "sudo")==0) {
-				printf("\nDo you want to execute the command '%s' with root privileges (y/n): ", ptr);
-				
-				while((c=getchar()) != EOF) {
-					getchar(); //Eat newline 
-					
-					if(c=='y')
-						goto execute;
-					else if(c=='n') {
-						printf("Ommiting the command '%s'.\n\n", ptr);
-						free(ptr);
-						for(i=0; command_list[i]!=NULL; i++)
-							free(command_list[i]);
-						break;
-					}
-					else {
-						printf("Please answer with y or n!\n");
-						printf("\nDo you want to execute the command '%s' with root privileges (y/n): ", ptr);
-						continue;
-					}
-				}
-				continue;
-			}
-			execute: ;
+			
+			printf("\nExecuting: %s\n", ptr);
 
 			status = exec_command(command_list[0], command_list);
 
@@ -194,6 +186,7 @@ int main(int argc, char *argv[]) {
 			free(configurations);
 			exit(EXIT_FAILURE);
 		}
+		printf("\n");
 		free(ptr);
 	}
 	free(configurations);
